@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skill-regression-harness"
+version = "0.1.0"
+description = "Regression suite for Claude skill definitions: static checks plus real dispatch testing"
+requires-python = ">=3.10"
+# claude-eval-kit is not on PyPI. Install it from a local checkout:
+#     pip install -e /path/to/claude-eval-kit
+# harness/_evalkit.py falls back to a sibling checkout at ../claude-eval-kit
+# so an unattended run does not die on a missing import.
+dependencies = []
+
+[tool.setuptools]
+packages = ["harness"]
