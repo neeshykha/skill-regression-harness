@@ -103,15 +103,34 @@ Every run after that is drift detection against a set already argued over.
 anything.** If an expectation genuinely turns out to be wrong, change it and record why in
 the commit — don't quietly retune until the run goes green.
 
-## Status
+## Results, 2026-08-28 (sonnet, claude 2.1.220)
 
-Layer 0 runs, and its findings against the live skill set are real (below). Layer 1 is
-built and unit-tested against recorded stream shapes, but **has not yet been executed
-against a live session** — the CLI on this machine is logged out. Until it runs, the exact
-shape of the Skill tool's entry in the `stream-json` transcript is the one part of this
-harness taken on inference rather than observation; `parse_stream()` accepts the plausible
-spellings of the skill-name key for that reason. No numbers are reported for Layer 1
-because there are none to report.
+**Layer 1: 18/19 dispatched correctly, 0 errored.** Five of the six confusable groups came
+back clean. Every negative case held — nothing fired on the weather question, the coding
+question, the plain scheduling request, or the case-reporting question.
+
+**The one miss is `mb-02`, and it's an under-fire, not an over-fire.** The prompt is
+`Test the new model when it drops.` and `model-baseline` does not dispatch. Reproduced
+three times out of three, so this is stable behavior rather than sampling noise.
+
+Two readings, and the honest answer is that both hold:
+
+- Its description explicitly claims this trigger family — `test a new model release`,
+  `"test Opus 5.2 when it drops"`, and `even if he doesn't say the word "baseline"`. By
+  that text, the prompt should route.
+- The prompt names no model, and the skill needs one to run against. Declining an
+  under-specified request is defensible behavior.
+
+So the description promises a trigger the dispatcher doesn't honor without a model name.
+**The case has deliberately not been edited.** Retuning an expectation after watching it
+fail is how a regression suite stops measuring anything; if the description is what
+changes, that gets its own commit with the reasoning attached.
+
+Worth noting the layers disagreed productively. Layer 0 flagged `model-baseline` and
+`jira-ticket-builder` as the two skills with no stated boundary, and predicted
+over-triggering. `jira-ticket-builder` held its boundary cleanly, and `model-baseline`
+failed in the opposite direction from the one predicted. The static layer picked the right
+skill to look at and the wrong failure mode.
 
 ### Layer 0 findings, 2026-08-28
 
@@ -131,6 +150,33 @@ and `mb-03` ("Is Opus 5 actually better than Sonnet 5 for long-form writing?") b
 That's the intended relationship between the layers: the free one predicts where the
 expensive one should look.
 
+### Two defects in the harness itself, both found by running it
+
+**1. The turn cap was being reported as a failure, and it hid a real finding.** The first
+live run produced 4 non-verdicts out of 19. Cause: prompts that want a tool the allowlist
+denies spend both turns retrying and terminate with `subtype: error_max_turns`. That is
+not a failure — the routing decision happens on the first turn, and if no `Skill` tool_use
+appears anywhere in the transcript, the model chose not to route. The cap firing afterwards
+cannot change a decision already observed.
+
+The cost of getting this wrong was not just missing data. **`mb-02` — the only genuine
+routing miss in the whole suite — was hiding behind one of those four errors.** Fixing the
+semantics turned 4 non-verdicts into 4 verdicts, three of which were correct negatives and
+one of which was the finding. Raising `--max-turns` would have been the wrong fix: it buys
+more denied tool calls at real cost, and the answer is already in hand when the cap fires.
+
+**2. The first fix broke the crash detector.** With the cap no longer setting an error, the
+fallback that reports a non-zero CLI exit took over — and the CLI exits 1 when it stops at
+the cap, so the same two cases errored again with a different message. The exit code alone
+cannot distinguish a crash from a normal capped run. `Dispatch.completed` now records
+whether a terminating `result` block was ever seen, and the exit code is only consulted
+when one wasn't.
+
+**Reporting note:** those first four failures were logged as `unknown error` and then did
+not reproduce, so the evidence was gone. `envelope_error()` now always carries `subtype`,
+`terminal_reason`, `stop_reason`, and `num_turns` even when there is no result text. An
+error string that can't tell a rate limit from a hung turn isn't a diagnosis.
+
 ### One false positive, caught before shipping
 
 The first lint run reported a broken reference in `model-baseline`, pointing at
@@ -145,6 +191,17 @@ then correctly observed that the fragment didn't exist. The fix was to the detec
 the skill: templated paths are captured whole and reported at INFO, never as errors —
 their absence is the expected state for something the skill is about to write. Pinned as a
 regression test.
+
+## A reproducibility caveat worth knowing
+
+Each dispatch is a real `claude -p` sub-session, and it inherits the full user environment:
+`~/.claude/CLAUDE.md`, memory, and every configured MCP server. That is correct for a
+dispatch test — the thing under test *is* the real routing environment — but it means the
+prompt is not the only input. During debugging, one sub-session's reply referenced content
+that was never in its prompt, which means ambient context can reach these runs.
+
+Practical consequence: treat a single disagreeing case as a hypothesis, not a result.
+`mb-02` is reported above as a finding only because it reproduced three times out of three.
 
 ## Not covered, deliberately
 

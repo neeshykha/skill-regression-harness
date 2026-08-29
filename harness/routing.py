@@ -33,6 +33,10 @@ class Dispatch:
     case_id: str
     invoked: str
     error: str | None = None
+    # True when a terminating `result` block was seen. The CLI exits non-zero
+    # when it stops at the turn cap, which is a normal outcome here -- so the
+    # process exit code only means "crashed" if no result block ever arrived.
+    completed: bool = False
 
 
 def _tool_uses(block: dict):
@@ -56,6 +60,7 @@ def parse_stream(lines) -> Dispatch:
     instructions enter the context and start influencing later calls.
     """
     error = None
+    completed = False
     for raw in lines:
         raw = raw.strip()
         if not raw:
@@ -73,13 +78,28 @@ def parse_stream(lines) -> Dispatch:
             payload = tool.get("input") or {}
             for key in _SKILL_INPUT_KEYS:
                 if payload.get(key):
-                    return Dispatch("", str(payload[key]))
-            return Dispatch("", "unknown")
+                    return Dispatch("", str(payload[key]), None, True)
+            return Dispatch("", "unknown", None, True)
 
         if block.get("type") == "result":
+            # Hitting the turn cap without ever invoking a Skill is a verdict,
+            # not a failure. The routing decision is made on the first turn; if
+            # no Skill tool_use appears anywhere in the transcript, the model
+            # chose not to route to one. What it does afterwards -- reaching for
+            # tools the allowlist denies until the cap stops it -- happens after
+            # the decision and cannot change it.
+            #
+            # Treating the cap as an error cost real information on the first
+            # live run: 4 of 19 cases reported no verdict, and mb-02 was hiding
+            # a genuine routing miss behind one. Raising --max-turns would only
+            # buy more denied tool calls at real cost; the cap is a budget, and
+            # the answer is already in hand when it fires.
+            completed = True
+            if block.get("subtype") == "error_max_turns":
+                continue
             error = envelope_error(block)
 
-    return Dispatch("", NO_SKILL, error)
+    return Dispatch("", NO_SKILL, error, completed)
 
 
 def dispatch_one(prompt: str, model: str, cwd: Path, timeout: int = 120) -> Dispatch:
@@ -104,8 +124,11 @@ def dispatch_one(prompt: str, model: str, cwd: Path, timeout: int = 120) -> Disp
         timeout=timeout,
     )
     parsed = parse_stream(result.stdout.splitlines())
-    if parsed.invoked == NO_SKILL and parsed.error is None and result.returncode != 0:
-        parsed.error = f"claude CLI exited {result.returncode}: {result.stderr[:300]}"
+    if not parsed.completed and parsed.error is None:
+        parsed.error = (
+            f"claude CLI exited {result.returncode} with no terminating result block: "
+            f"{(result.stderr or result.stdout)[:300]}"
+        )
     return parsed
 
 

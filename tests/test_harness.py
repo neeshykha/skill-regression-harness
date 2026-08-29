@@ -117,7 +117,18 @@ class TestEnvelopeError(unittest.TestCase):
         self.assertIsNone(envelope_error({"is_error": False, "subtype": "success", "result": "pong"}))
 
     def test_api_error_without_is_error_still_caught(self):
-        self.assertEqual(envelope_error({"terminal_reason": "api_error", "result": "boom"}), "boom")
+        msg = envelope_error({"terminal_reason": "api_error", "result": "boom"})
+        self.assertIn("boom", msg)
+        self.assertIn("terminal_reason=api_error", msg)
+
+    def test_error_with_no_result_text_still_carries_diagnosis(self):
+        """The first live run produced four failures reported only as
+        "unknown error". They did not reproduce, so the detail was lost. An
+        error string has to say enough to tell a rate limit from a hung turn."""
+        msg = envelope_error({"is_error": True, "subtype": "error_max_turns", "num_turns": 2})
+        self.assertIn("no result text", msg)
+        self.assertIn("subtype=error_max_turns", msg)
+        self.assertIn("num_turns=2", msg)
 
 
 class TestParseStream(unittest.TestCase):
@@ -159,6 +170,30 @@ class TestParseStream(unittest.TestCase):
         d = parse_stream(lines)
         self.assertEqual(d.invoked, NO_SKILL)
         self.assertIn("Failed to authenticate", d.error)
+
+    def test_max_turns_without_a_skill_is_a_none_verdict_not_an_error(self):
+        """Observed on the first live run: cases whose prompts want a denied
+        tool burn both turns retrying and terminate with error_max_turns. The
+        routing decision was already made and observed -- no Skill was
+        invoked -- so the verdict is `none`."""
+        lines = self._lines(
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {}}]}},
+            {"type": "result", "is_error": True, "subtype": "error_max_turns", "num_turns": 2},
+        )
+        d = parse_stream(lines)
+        self.assertEqual(d.invoked, NO_SKILL)
+        self.assertIsNone(d.error)
+
+    def test_max_turns_after_a_skill_still_reports_that_skill(self):
+        lines = self._lines(
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "car-check"}}]}},
+            {"type": "result", "is_error": True, "subtype": "error_max_turns"},
+        )
+        self.assertEqual(parse_stream(lines).invoked, "car-check")
+
+    def test_real_errors_are_still_errors(self):
+        lines = self._lines({"type": "result", "is_error": True, "subtype": "success", "result": "overloaded_error"})
+        self.assertIn("overloaded_error", parse_stream(lines).error)
 
     def test_malformed_lines_are_skipped(self):
         lines = ["not json", "", '{"type":"tool_use","name":"Skill","input":{"skill":"x"}}']

@@ -33,12 +33,25 @@ def envelope_error(envelope: dict) -> str | None:
 
     Checks `is_error` and `terminal_reason`, never `subtype` and never the
     process exit code. Both of those report success on an expired session.
+
+    The message always carries `subtype` and `terminal_reason` even when
+    `result` is populated. The first live run produced four failures reported
+    only as "unknown error", which was enough to know something broke and not
+    enough to know what -- and they turned out to be non-reproducible, so the
+    detail was gone for good. An error string that cannot distinguish a rate
+    limit from a hung turn is not a diagnosis.
     """
-    if envelope.get("is_error"):
-        return str(envelope.get("result") or "unknown error")
-    if envelope.get("terminal_reason") == "api_error":
-        return str(envelope.get("result") or "api_error")
-    return None
+    failed = bool(envelope.get("is_error")) or envelope.get("terminal_reason") == "api_error"
+    if not failed:
+        return None
+    parts = [
+        f"subtype={envelope.get('subtype')}",
+        f"terminal_reason={envelope.get('terminal_reason')}",
+        f"stop_reason={envelope.get('stop_reason')}",
+        f"num_turns={envelope.get('num_turns')}",
+    ]
+    detail = str(envelope.get("result") or "").strip()
+    return f"{detail or 'no result text'} [{', '.join(parts)}]"
 
 
 def check(timeout: int = 30) -> Preflight:
