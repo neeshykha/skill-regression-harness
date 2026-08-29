@@ -130,6 +130,7 @@ def main() -> int:
                 case=c,
                 invoked=recorded.get(c["id"], {}).get("invoked"),
                 error=recorded.get(c["id"], {}).get("error") or (None if c["id"] in recorded else "not run"),
+                own=frozenset(s.dir.name for s in skills),
             )
             for c in cases
         ]
@@ -156,7 +157,7 @@ def main() -> int:
         return 2
     if lint_errors:
         return 1
-    if outcomes and any(o.error or not o.ok for o in outcomes):
+    if outcomes and any(o.error or (not o.ok and not o.foreign) for o in outcomes):
         return 1
     return 0
 

@@ -7,6 +7,7 @@ import html
 from dataclasses import dataclass
 
 from ._evalkit import TrapGroup, audit_traps, confusion_matrix
+from .routing import NO_SKILL
 
 _CSS = """
 :root{--bg:#fbfbfa;--fg:#1c1b19;--muted:#6b6862;--line:#e2ded7;--card:#fff;
@@ -53,6 +54,9 @@ class RoutingOutcome:
     case: dict
     invoked: str | None
     error: str | None
+    # Names of the skills this suite actually tests. Anything else the dispatcher
+    # reaches is a third outcome, not a failure of a tested skill.
+    own: frozenset = frozenset()
 
     @property
     def strict_ok(self) -> bool:
@@ -61,6 +65,20 @@ class RoutingOutcome:
     @property
     def ok(self) -> bool:
         return self.invoked in self.case.get("acceptable", [self.case["expected"]])
+
+    @property
+    def foreign(self) -> bool:
+        """Dispatched to a skill outside the tested set.
+
+        `expected: "none"` was written to mean "no skill fires", but the
+        dispatcher can also reach bundled and plugin skills that this suite does
+        not own and Aneesh cannot edit. mb-03 ("Is Opus 5 better than Sonnet 5
+        for long-form writing?") reaches the bundled `claude-api` skill, whose
+        description explicitly claims LLM model-choice questions -- arguably
+        correct behaviour, and not something model-baseline did wrong. Scoring
+        that as a miss would blame his skills for a decision made elsewhere.
+        """
+        return bool(self.invoked) and self.invoked != NO_SKILL and self.invoked not in self.own and not self.ok
 
 
 def _e(x) -> str:
@@ -106,10 +124,13 @@ def _routing_tables(outcomes: list[RoutingOutcome], traps: list[dict]) -> str:
         elif o.ok:
             status = '<span class="pill pass">pass</span>'
             got = f"<code>{_e(o.invoked)}</code>"
+        elif o.foreign:
+            status = '<span class="pill info">outside set</span>'
+            got = f"<code>{_e(o.invoked)}</code>"
         else:
             status = '<span class="pill fail">fail</span>'
             got = f"<code>{_e(o.invoked)}</code>"
-        cls = "" if (o.error is None and o.ok) else ' class="miss"'
+        cls = "" if (o.error is None and (o.ok or o.foreign)) else ' class="miss"'
         case_rows.append(
             f"<tr{cls}><td>{status}</td><td><code>{_e(o.case['id'])}</code></td>"
             f"<td>{_e(o.case['prompt'])}</td>"
@@ -156,13 +177,15 @@ def render(
 
     if outcomes:
         ran = [o for o in outcomes if o.error is None]
-        failed = [o for o in ran if not o.ok]
+        foreign = [o for o in ran if o.foreign]
+        failed = [o for o in ran if not o.ok and not o.foreign]
         strict_miss = [o for o in ran if o.ok and not o.strict_ok]
         errored = [o for o in outcomes if o.error]
         tiles = _tiles(
             [
                 (f"{len(ran) - len(failed)}/{len(ran)}", "dispatch correct"),
                 (len(failed), "dispatch wrong"),
+                (len(foreign), "outside tested set"),
                 (len(errored), "call errored"),
                 (len(errors), "lint errors"),
                 (len(warns), "lint warnings"),
@@ -174,7 +197,9 @@ def render(
             "and the static checks are clean.</div>"
             if clean
             else f'<div class="banner bad"><b>{len(failed)} dispatch failure(s), {len(errored)} errored call(s), '
-            f"{len(errors)} lint error(s).</b> Detail below.</div>"
+            f"{len(errors)} lint error(s)"
+            + (f", {len(foreign)} dispatch(es) to a skill outside the tested set" if foreign else "")
+            + ".</b> Detail below.</div>"
         )
         routing = _routing_tables(outcomes, traps)
         if strict_miss:

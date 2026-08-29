@@ -275,10 +275,13 @@ class TestDispatchSafety(unittest.TestCase):
             routing_mod.subprocess.run = real
         return captured
 
-    def test_runs_in_plan_mode(self):
-        cmd = self._captured_call()["cmd"]
-        self.assertIn("--permission-mode", cmd)
-        self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "plan")
+    def test_does_not_use_plan_mode(self):
+        """Plan mode is safe but changes what is measured: it declines to
+        dispatch side-effectful skills. model-baseline went 0/3 under it vs 2/3
+        under the denylist alone, and interview-loop's "prep me for X" stopped
+        firing. A control that suppresses the behaviour under test is a broken
+        harness, not a safe one."""
+        self.assertNotIn("--permission-mode", self._captured_call()["cmd"])
 
     def test_never_uses_the_broken_allowlist(self):
         self.assertNotIn("--allowedTools", self._captured_call()["cmd"])

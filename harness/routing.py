@@ -6,9 +6,19 @@ whether a model can match descriptions when told to, which is not the thing that
 breaks. What breaks is dispatch: a model upgrade changes how aggressively
 descriptions are matched, and a skill silently stops firing.
 
-Safety: every run is invoked with `--permission-mode plan`, plus a denylist of
-the effectful tools. A skill still dispatches and is fully visible in the
-transcript, but nothing it then reaches for executes.
+Safety: every run is invoked with a denylist of the effectful tools. A skill
+still dispatches and is fully visible in the transcript, but nothing it then
+reaches for executes. Verified with the same probe that caught the original
+flaw -- a bash command touching a file INSIDE the home tree, where the
+working-directory guard does not apply -- and no file is created.
+
+`--permission-mode plan` was tried here and had to be reverted: it is safe, but
+it CHANGES WHAT IS MEASURED. Plan mode declines to dispatch skills whose work
+has side effects, so `model-baseline` went 0/3 under it versus 2/3 under the
+denylist alone, and `interview-loop`'s "prep me for X" stopped firing entirely.
+Those are exactly the skills where routing matters most operationally. A safety
+mechanism that suppresses the behaviour under test is not a safe harness, it is
+a broken one.
 
 `--allowedTools Skill` was used for this at first and DOES NOT WORK. It does not
 restrict anything: a probe on 2026-08-29 confirmed Bash still ran under it, and
@@ -139,8 +149,6 @@ def dispatch_one(prompt: str, model: str, cwd: Path, timeout: int = 120) -> Disp
             "--output-format",
             "stream-json",
             "--verbose",
-            "--permission-mode",
-            "plan",
             "--disallowedTools",
             *_DENIED_TOOLS,
             "--max-turns",

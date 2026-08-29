@@ -149,34 +149,51 @@ Every run after that is drift detection against a set already argued over.
 anything.** If an expectation genuinely turns out to be wrong, change it and record why in
 the commit — don't quietly retune until the run goes green.
 
-## Results, 2026-08-28 (sonnet, claude 2.1.220)
+## Results, 2026-08-29 (sonnet, claude 2.1.220, denylist config)
 
-**Layer 1: 18/19 dispatched correctly, 0 errored.** Five of the six confusable groups came
-back clean. Every negative case held — nothing fired on the weather question, the coding
-question, the plain scheduling request, or the case-reporting question.
+**21/23 correct, 0 errored, on 6 skills.** One miss and one dispatch outside the tested set.
 
-**The one miss is `mb-02`, and it's an under-fire, not an over-fire.** The prompt is
+**`mb-02` — the one real finding, and it has now survived everything.** The prompt is
 `Test the new model when it drops.` and `model-baseline` does not dispatch. Reproduced
-three times out of three, so this is stable behavior rather than sampling noise.
+across four runs and two different safety configurations. Its description explicitly claims
+that trigger family — `test a new model release`, `"test Opus 5.2 when it drops"`, and `even
+if he doesn't say the word "baseline"` — but the prompt names no model, and the skill needs
+one to run. Both readings hold: the description over-promises, or declining an
+under-specified request is correct. **The case is deliberately unedited** pending
+adjudication.
 
-Two readings, and the honest answer is that both hold:
+**`mb-03` — a defect in this suite, not in a skill.** `Is Opus 5 actually better than
+Sonnet 5 for long-form writing?` dispatches the **bundled `claude-api` skill**, whose
+description explicitly claims LLM model-choice questions. `expected: "none"` was written to
+mean "no skill fires", but the dispatcher also reaches bundled and plugin skills this suite
+neither owns nor can edit. Scoring that as a miss would blame `model-baseline` for a decision
+made elsewhere, so there is now a third verdict — **outside tested set** — reported
+separately from a miss and excluded from the failure exit code.
 
-- Its description explicitly claims this trigger family — `test a new model release`,
-  `"test Opus 5.2 when it drops"`, and `even if he doesn't say the word "baseline"`. By
-  that text, the prompt should route.
-- The prompt names no model, and the skill needs one to run against. Declining an
-  under-specified request is defensible behavior.
+### The safety mechanism that changed the answer
 
-So the description promises a trigger the dispatcher doesn't honor without a model name.
-**The case has deliberately not been edited.** Retuning an expectation after watching it
-fail is how a regression suite stops measuring anything; if the description is what
-changes, that gets its own commit with the reasoning attached.
+`--permission-mode plan` was adopted as the fix for the allowlist problem below, and had to
+be reverted within the hour. It is genuinely safe. It also **changes what is measured**:
 
-Worth noting the layers disagreed productively. Layer 0 flagged `model-baseline` and
-`jira-ticket-builder` as the two skills with no stated boundary, and predicted
-over-triggering. `jira-ticket-builder` held its boundary cleanly, and `model-baseline`
-failed in the opposite direction from the one predicted. The static layer picked the right
-skill to look at and the wrong failure mode.
+| case | prompt | plan mode | denylist only |
+|---|---|---|---|
+| `mb-01` | "run the baseline against Opus 5.2" | 0/3 | 2/3 |
+| `int-02` | "prep me for Baseten" | none | interview-loop |
+| `sc-03` | "Run the baseline ... and tell me how it scores." | none | model-baseline |
+
+Plan mode declines to dispatch skills whose work has side effects — which is exactly what
+plan mode is for, and exactly the wrong property here. The skills it suppresses
+(`model-baseline` runs a suite and writes files; `interview-loop`'s "prep me for X" reads
+calendar and Gmail) are the ones where routing matters most operationally. Skills that only
+produce text in-conversation kept dispatching normally, which is why the first three runs
+looked plausible.
+
+**A safety control that suppresses the behaviour under test is not a safe harness, it is a
+broken one.** The final config is the denylist alone, verified with the same in-home-tree
+bash probe that caught the original flaw. Pinned in `tests/test_harness.py`.
+
+Worth recording: `mb-01` is 2/3 even under the correct config, so it is genuinely flaky
+independent of any of this. A single passing run of that case proves less than it looks like.
 
 ### Layer 0 findings, 2026-08-28
 
