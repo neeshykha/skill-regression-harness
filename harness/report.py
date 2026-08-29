@@ -205,6 +205,7 @@ def render(
 <h2>Static checks</h2>
 {_lint_table(lint_findings)}
 {routing}
-<footer>Scoring by claude-eval-kit ({_e(evalkit_source)}). Dispatch runs with
-<code>--allowedTools Skill</code>, so a skill loads its instructions and can reach nothing else.</footer>
+<footer>Scoring by claude-eval-kit ({_e(evalkit_source)}). Dispatch runs in
+<code>--permission-mode plan</code> with a tool denylist, so a skill's routing decision is
+visible but nothing it reaches for executes.</footer>
 </div></body></html>"""

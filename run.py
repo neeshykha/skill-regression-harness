@@ -12,6 +12,7 @@ Exit codes are the report-by-exception contract:
 
 import argparse
 import json
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -85,6 +86,14 @@ def main() -> int:
         print(f"\nRe-dispatching, {len(drift)} reason(s):", file=sys.stderr)
         for r in drift:
             print(f"  - {r}", file=sys.stderr)
+
+    if os.environ.get(routing.RECURSION_GUARD) and not args.lint_only:
+        print(
+            f"\n{routing.RECURSION_GUARD} is set: this process is running inside a dispatched "
+            "sub-session. Refusing to start a dispatch layer. Running static checks only.",
+            file=sys.stderr,
+        )
+        args.lint_only = True
 
     if args.lint_only:
         print("\nLint only; dispatch layer skipped.", file=sys.stderr)

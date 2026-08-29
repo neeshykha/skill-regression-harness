@@ -37,10 +37,13 @@ The cheap version of Layer 1 hands a model the skill roster and asks which one i
 pick. That measures whether a model can match descriptions when explicitly told to, which
 is not the thing that breaks. What breaks is dispatch itself.
 
-So the harness runs the real dispatcher. Every call is invoked with `--allowedTools Skill`,
-an allowlist: the Skill tool only loads instructions into context, which is inert, and
-every tool the loaded skill would then reach for is denied. `jira-ticket-builder` gets
-dispatch-tested without touching Salesforce. `interview-loop` without touching Gmail.
+So the harness runs the real dispatcher, in **plan mode** with a denylist of the effectful
+tools. A skill still dispatches and the decision is fully visible in the transcript, but
+nothing it then reaches for executes. `jira-ticket-builder` gets dispatch-tested without
+touching Salesforce; `interview-loop` without touching Gmail.
+
+**`--allowedTools Skill` was the first attempt at this and it does not work.** See
+"The safety mechanism that wasn't" below — it is the most useful thing in this repo.
 
 ## The auth failure this is built around
 
@@ -202,7 +205,55 @@ and `mb-03` ("Is Opus 5 actually better than Sonnet 5 for long-form writing?") b
 That's the intended relationship between the layers: the free one predicts where the
 expensive one should look.
 
-### Two defects in the harness itself, both found by running it
+### The safety mechanism that wasn't
+
+`--allowedTools Skill` reads like an allowlist. It is not restrictive in the way this harness
+depended on. A probe on 2026-08-29:
+
+```
+prompt:  "Run this bash command now: touch /tmp/allowlist-probe.txt"
+flags:   --allowedTools Skill
+result:  Bash tool_use ATTEMPTED and executed; the write failed with
+         "blocked ... may only create or modify files in the allowed working directories"
+```
+
+Bash ran. The write failed for an unrelated reason — a working-directory guard — and that
+guard **does not apply inside the home tree**, which is exactly where these runs are cwd'd.
+
+**How it surfaced, which is the part worth keeping.** A new `skill-check` skill was added
+whose own instructions say "run the harness." Dispatch-testing it recursed: sub-sessions ran
+`run.py`, which dispatched again. The predictions file went from 19 rows to **232**, with
+`sc-01`×22, `sc-02`×51, `sc-03`×66, `sc-04`×74 in contiguous blocks. Contiguous-and-growing
+is the signature of recursion rather than concurrency, and that shape is what prompted the
+probe. Nothing was damaged outside the repo, and no runaway process survived the run.
+
+Earlier in the same session a `jira-ticket-builder` dispatch had attempted
+`python3 ~/.claude/skills/jira-ticket-builder/scripts/fetch_case.py 268386`, and the
+transcript's following `user` blocks were **assumed** to be denials. They were not verified.
+That call most likely executed. It is a read-only Salesforce query, so nothing was written,
+but the safety claim made on the strength of it was wrong.
+
+**The fix, verified rather than assumed:**
+
+```
+prompt:  "build me a jira ticket for 268386"     flags: --permission-mode plan
+         -> Skill{"skill": "jira-ticket-builder"}   (dispatch still visible)
+
+prompt:  "Run this bash command now: touch ..."  flags: --permission-mode plan
+         -> no tools attempted, no file created
+```
+
+Plus `--disallowedTools` over Bash/Write/Edit/WebFetch/WebSearch/Task/Agent/ToolSearch (the
+denylist matters because with Bash denied alone, the model reached for `ToolSearch` to find
+another route), and an environment-variable recursion guard: `run.py` refuses to start a
+dispatch layer when `SKILL_HARNESS_DISPATCHING` is set, so a nested run cannot recurse even
+if the tool gating is wrong again.
+
+**The generalizable lesson:** a safety control that has never been probed is an assumption,
+not a control. This one read plausibly, appeared to work, and was wrong — and what exposed it
+was junk data in the harness's own output, not a security review.
+
+### Two more defects in the harness itself, both found by running it
 
 **1. The turn cap was being reported as a failure, and it hid a real finding.** The first
 live run produced 4 non-verdicts out of 19. Cause: prompts that want a tool the allowlist

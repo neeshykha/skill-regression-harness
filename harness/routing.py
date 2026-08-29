@@ -6,12 +6,38 @@ whether a model can match descriptions when told to, which is not the thing that
 breaks. What breaks is dispatch: a model upgrade changes how aggressively
 descriptions are matched, and a skill silently stops firing.
 
-Safety: every run is invoked with `--allowedTools Skill`, an allowlist. The
-Skill tool only loads instructions into context, which is inert; every tool the
-loaded skill would then reach for (Bash, Read, the Salesforce and Gmail MCP
-tools) is denied. So `jira-ticket-builder` can be dispatch-tested without
-touching Salesforce, and `interview-loop` without touching Gmail.
+Safety: every run is invoked with `--permission-mode plan`, plus a denylist of
+the effectful tools. A skill still dispatches and is fully visible in the
+transcript, but nothing it then reaches for executes.
+
+`--allowedTools Skill` was used for this at first and DOES NOT WORK. It does not
+restrict anything: a probe on 2026-08-29 confirmed Bash still ran under it, and
+the only reason a write failed was an unrelated working-directory guard -- which
+does not apply inside the home tree, where these runs are cwd'd. The concrete
+damage: dispatch-testing a skill whose own instructions say "run the harness"
+recursed, and appended 213 junk rows to a predictions file.
 """
+
+import os
+
+# Set in the environment of every dispatched sub-session. run.py refuses to
+# start a dispatch layer when it sees this, so a skill that tells the agent to
+# run this harness cannot recurse even if the tool gating is wrong again.
+RECURSION_GUARD = "SKILL_HARNESS_DISPATCHING"
+
+# Belt-and-braces alongside plan mode. Plan mode is what actually stops
+# execution; this narrows what the model will even reach for.
+_DENIED_TOOLS = [
+    "Bash",
+    "Write",
+    "Edit",
+    "NotebookEdit",
+    "WebFetch",
+    "WebSearch",
+    "Task",
+    "Agent",
+    "ToolSearch",
+]
 
 import json
 import subprocess
@@ -113,8 +139,10 @@ def dispatch_one(prompt: str, model: str, cwd: Path, timeout: int = 120) -> Disp
             "--output-format",
             "stream-json",
             "--verbose",
-            "--allowedTools",
-            "Skill",
+            "--permission-mode",
+            "plan",
+            "--disallowedTools",
+            *_DENIED_TOOLS,
             "--max-turns",
             "2",
         ],
@@ -122,6 +150,7 @@ def dispatch_one(prompt: str, model: str, cwd: Path, timeout: int = 120) -> Disp
         capture_output=True,
         text=True,
         timeout=timeout,
+        env={**os.environ, RECURSION_GUARD: "1"},
     )
     parsed = parse_stream(result.stdout.splitlines())
     if not parsed.completed and parsed.error is None:

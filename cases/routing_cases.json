@@ -16,7 +16,9 @@
       "id": "car-01",
       "prompt": "https://www.carvana.com/vehicle/2861049 thoughts?",
       "expected": "car-check",
-      "acceptable": ["car-check"],
+      "acceptable": [
+        "car-check"
+      ],
       "trap": "car_intent",
       "why": "Bare 'thoughts?' beside a listing URL. The description claims this exact phrasing."
     },
@@ -24,7 +26,9 @@
       "id": "car-02",
       "prompt": "2023 Volvo XC40 Recharge, 31k miles, $28,400. Grade this.",
       "expected": "car-check",
-      "acceptable": ["car-check"],
+      "acceptable": [
+        "car-check"
+      ],
       "trap": "car_intent",
       "why": "Named year/make/model with price and an explicit grade request."
     },
@@ -32,7 +36,9 @@
       "id": "car-03",
       "prompt": "What's the actual difference between a Volvo XC40 Recharge and a C40 Recharge?",
       "expected": "none",
-      "acceptable": ["none"],
+      "acceptable": [
+        "none"
+      ],
       "trap": "car_intent",
       "why": "Names a specific model but attaches no purchase decision. The description's explicit non-trigger."
     },
@@ -40,7 +46,9 @@
       "id": "car-04",
       "prompt": "Why do electric cars lose so much range in cold weather?",
       "expected": "none",
-      "acceptable": ["none"],
+      "acceptable": [
+        "none"
+      ],
       "trap": "car_intent",
       "why": "General automotive trivia. Should not fire."
     },
@@ -48,7 +56,9 @@
       "id": "imp-01",
       "prompt": "retro this session",
       "expected": "improvement-notes",
-      "acceptable": ["improvement-notes"],
+      "acceptable": [
+        "improvement-notes"
+      ],
       "trap": "improvement_boundary",
       "why": "Verbatim trigger phrase from the description."
     },
@@ -56,7 +66,9 @@
       "id": "imp-02",
       "prompt": "How could we have done that faster and with less back and forth?",
       "expected": "improvement-notes",
-      "acceptable": ["improvement-notes"],
+      "acceptable": [
+        "improvement-notes"
+      ],
       "trap": "improvement_boundary",
       "why": "Paraphrase of a claimed trigger, never using the word 'audit'."
     },
@@ -64,7 +76,10 @@
       "id": "imp-03",
       "prompt": "Debrief the Anthropic interview I just finished.",
       "expected": "interview-loop",
-      "acceptable": ["interview-loop", "none"],
+      "acceptable": [
+        "interview-loop",
+        "none"
+      ],
       "trap": "improvement_boundary",
       "why": "improvement-notes explicitly disclaims interview debriefs. The postmortem skill that owns them is project-scoped to resume_project and is not installed globally, so from the home directory either interview-loop or no skill is defensible. improvement-notes is the failure."
     },
@@ -72,7 +87,9 @@
       "id": "jira-01",
       "prompt": "00268386",
       "expected": "jira-ticket-builder",
-      "acceptable": ["jira-ticket-builder"],
+      "acceptable": [
+        "jira-ticket-builder"
+      ],
       "trap": "jira_scope",
       "why": "A bare case number with no other context. The description claims this."
     },
@@ -80,7 +97,9 @@
       "id": "jira-02",
       "prompt": "build me a jira ticket for 268386",
       "expected": "jira-ticket-builder",
-      "acceptable": ["jira-ticket-builder"],
+      "acceptable": [
+        "jira-ticket-builder"
+      ],
       "trap": "jira_scope",
       "why": "Unambiguous. If this one ever fails, the skill is broken outright."
     },
@@ -88,7 +107,9 @@
       "id": "jira-03",
       "prompt": "is 00268386 even an engineering ticket?",
       "expected": "jira-ticket-builder",
-      "acceptable": ["jira-ticket-builder"],
+      "acceptable": [
+        "jira-ticket-builder"
+      ],
       "trap": "jira_scope",
       "why": "The description claims this phrasing specifically."
     },
@@ -96,7 +117,9 @@
       "id": "jira-04",
       "prompt": "How many cases did the team close last week?",
       "expected": "none",
-      "acceptable": ["none"],
+      "acceptable": [
+        "none"
+      ],
       "trap": "jira_scope",
       "why": "Case-shaped and Salesforce-shaped, but it is a reporting question the sf-caseops MCP tools answer directly. jira-ticket-builder states no non-trigger boundary, so this is the case most likely to over-fire."
     },
@@ -104,7 +127,9 @@
       "id": "mb-01",
       "prompt": "run the baseline against Opus 5.2",
       "expected": "model-baseline",
-      "acceptable": ["model-baseline"],
+      "acceptable": [
+        "model-baseline"
+      ],
       "trap": "baseline_scope",
       "why": "Verbatim trigger."
     },
@@ -112,7 +137,9 @@
       "id": "mb-02",
       "prompt": "Test the new model when it drops.",
       "expected": "model-baseline",
-      "acceptable": ["model-baseline"],
+      "acceptable": [
+        "model-baseline"
+      ],
       "trap": "baseline_scope",
       "why": "The description claims this without the word 'baseline' appearing."
     },
@@ -120,7 +147,9 @@
       "id": "mb-03",
       "prompt": "Is Opus 5 actually better than Sonnet 5 for long-form writing?",
       "expected": "none",
-      "acceptable": ["none"],
+      "acceptable": [
+        "none"
+      ],
       "trap": "baseline_scope",
       "why": "Model comparison as opinion, not a request to run anything. model-baseline states no non-trigger boundary, so this is where it would over-fire."
     },
@@ -128,7 +157,9 @@
       "id": "int-01",
       "prompt": "What interviews do I have coming up?",
       "expected": "interview-loop",
-      "acceptable": ["interview-loop"],
+      "acceptable": [
+        "interview-loop"
+      ],
       "trap": "interview_scope",
       "why": "Verbatim trigger."
     },
@@ -136,7 +167,9 @@
       "id": "int-02",
       "prompt": "prep me for Baseten",
       "expected": "interview-loop",
-      "acceptable": ["interview-loop"],
+      "acceptable": [
+        "interview-loop"
+      ],
       "trap": "interview_scope",
       "why": "The description claims 'prep me for [company]'."
     },
@@ -144,7 +177,9 @@
       "id": "int-03",
       "prompt": "Put 30 minutes on my calendar tomorrow afternoon.",
       "expected": "none",
-      "acceptable": ["none"],
+      "acceptable": [
+        "none"
+      ],
       "trap": "interview_scope",
       "why": "Calendar-shaped and adjacent to interview-loop's data sources, but it is a scheduling request with no interview in it."
     },
@@ -152,7 +187,9 @@
       "id": "neg-01",
       "prompt": "What's the weather in Atlanta this weekend?",
       "expected": "none",
-      "acceptable": ["none"],
+      "acceptable": [
+        "none"
+      ],
       "trap": "negative_control",
       "why": "Control. Any skill firing here means dispatch is over-eager across the board."
     },
@@ -160,35 +197,111 @@
       "id": "neg-02",
       "prompt": "Write me a Python function that reverses a string in place.",
       "expected": "none",
-      "acceptable": ["none"],
+      "acceptable": [
+        "none"
+      ],
       "trap": "negative_control",
       "why": "Control. Ordinary coding request."
+    },
+    {
+      "id": "sc-01",
+      "prompt": "skill check",
+      "expected": "skill-check",
+      "acceptable": [
+        "skill-check"
+      ],
+      "trap": "skillcheck_scope",
+      "why": "Bare verbatim trigger, two words, no other context."
+    },
+    {
+      "id": "sc-02",
+      "prompt": "Did any of my skills break?",
+      "expected": "skill-check",
+      "acceptable": [
+        "skill-check"
+      ],
+      "trap": "skillcheck_scope",
+      "why": "Paraphrase of a claimed trigger without the word 'skill check'."
+    },
+    {
+      "id": "sc-03",
+      "prompt": "Run the baseline against Opus 5.2 and tell me how it scores.",
+      "expected": "model-baseline",
+      "acceptable": [
+        "model-baseline"
+      ],
+      "trap": "skillcheck_scope",
+      "why": "The nearest neighbour. skill-check disclaims the frozen model-quality suite explicitly; this must reach model-baseline, not skill-check. Guards against the new skill stealing its prompts."
+    },
+    {
+      "id": "sc-04",
+      "prompt": "Find me some new Claude skills worth installing.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "skillcheck_scope",
+      "why": "Skill-shaped but it is discovery, not health. skill-check disclaims it; the weekly skill scan owns it and is a scheduled task, not a dispatchable skill."
     }
   ],
   "traps": [
     {
       "label": "car-check: purchase intent vs. automotive trivia",
-      "ids": ["car-01", "car-02", "car-03", "car-04"]
+      "ids": [
+        "car-01",
+        "car-02",
+        "car-03",
+        "car-04"
+      ]
     },
     {
       "label": "improvement-notes vs. interview debrief (disclaimed in its own description)",
-      "ids": ["imp-01", "imp-02", "imp-03"]
+      "ids": [
+        "imp-01",
+        "imp-02",
+        "imp-03"
+      ]
     },
     {
       "label": "jira-ticket-builder: ticket request vs. case reporting (no stated boundary)",
-      "ids": ["jira-01", "jira-02", "jira-03", "jira-04"]
+      "ids": [
+        "jira-01",
+        "jira-02",
+        "jira-03",
+        "jira-04"
+      ]
     },
     {
       "label": "model-baseline: run the suite vs. opine on models (no stated boundary)",
-      "ids": ["mb-01", "mb-02", "mb-03"]
+      "ids": [
+        "mb-01",
+        "mb-02",
+        "mb-03"
+      ]
     },
     {
       "label": "interview-loop: interview questions vs. plain scheduling",
-      "ids": ["int-01", "int-02", "int-03"]
+      "ids": [
+        "int-01",
+        "int-02",
+        "int-03"
+      ]
     },
     {
       "label": "negative controls: nothing should fire",
-      "ids": ["neg-01", "neg-02"]
+      "ids": [
+        "neg-01",
+        "neg-02"
+      ]
+    },
+    {
+      "label": "skill-check: health check vs. model baseline vs. skill discovery",
+      "ids": [
+        "sc-01",
+        "sc-02",
+        "sc-03",
+        "sc-04"
+      ]
     }
   ]
 }

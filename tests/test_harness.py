@@ -24,6 +24,7 @@ from harness.lint import (  # noqa: E402
     check_untested_triggers,
 )
 from harness.preflight import envelope_error  # noqa: E402
+from harness import routing as routing_mod  # noqa: E402
 from harness.routing import NO_SKILL, parse_stream  # noqa: E402
 
 
@@ -243,6 +244,58 @@ class TestCaseSet(unittest.TestCase):
         """A suite of only positive cases cannot detect over-triggering, which is
         the failure mode a skill with no stated boundary actually has."""
         self.assertGreaterEqual(sum(1 for c in self.data["cases"] if c["expected"] == "none"), 5)
+
+
+class TestDispatchSafety(unittest.TestCase):
+    """Pins the safety posture. The first mechanism (`--allowedTools Skill`) did not
+    restrict anything -- Bash executed under it, and dispatch-testing a skill whose
+    instructions say "run the harness" recursed 19 predictions rows into 232. These
+    assertions exist so that cannot silently revert."""
+
+    def _captured_call(self):
+        captured = {}
+
+        class FakeResult:
+            returncode = 0
+            stdout = json.dumps(
+                {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "x"}}]}}
+            )
+            stderr = ""
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            captured["env"] = kwargs.get("env") or {}
+            return FakeResult()
+
+        real = routing_mod.subprocess.run
+        routing_mod.subprocess.run = fake_run
+        try:
+            routing_mod.dispatch_one("prompt", "sonnet", Path.home())
+        finally:
+            routing_mod.subprocess.run = real
+        return captured
+
+    def test_runs_in_plan_mode(self):
+        cmd = self._captured_call()["cmd"]
+        self.assertIn("--permission-mode", cmd)
+        self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "plan")
+
+    def test_never_uses_the_broken_allowlist(self):
+        self.assertNotIn("--allowedTools", self._captured_call()["cmd"])
+
+    def test_denies_the_effectful_tools(self):
+        cmd = self._captured_call()["cmd"]
+        for tool in ("Bash", "Write", "Edit", "WebFetch", "WebSearch", "ToolSearch"):
+            self.assertIn(tool, cmd, f"{tool} must be on the denylist")
+
+    def test_toolsearch_specifically_is_denied(self):
+        """With Bash alone denied, the model reached for ToolSearch to find another
+        route. The denylist has to cover the escape hatch, not just the front door."""
+        self.assertIn("ToolSearch", routing_mod._DENIED_TOOLS)
+
+    def test_sets_the_recursion_guard_in_the_child_environment(self):
+        env = self._captured_call()["env"]
+        self.assertEqual(env.get(routing_mod.RECURSION_GUARD), "1")
 
 
 class TestDispatchCoverage(unittest.TestCase):
