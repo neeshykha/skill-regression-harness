@@ -1,0 +1,12 @@
+{
+  "_comment": "Baseline the dispatch results were produced against. Update it only when a run has been re-validated, never to silence a drift warning.",
+  "cli_version": "2.1.220 (Claude Code)",
+  "model": "sonnet",
+  "descriptions": {
+    "car-check": "b1352cb67ab720c5",
+    "improvement-notes": "82a83a9c7ce1f71f",
+    "interview-loop": "ef7c0e05991749f0",
+    "jira-ticket-builder": "5a33b524b4ba99ef",
+    "model-baseline": "1e9a2bbc8c05089b"
+  }
+}

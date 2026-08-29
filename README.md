@@ -12,7 +12,14 @@ layers, and reports by exception.
 **Layer 0 — static checks.** Deterministic, instant, free. Missing or malformed
 frontmatter, a `name:` that disagrees with its own directory, two skills sharing a name,
 quoted trigger phrases claimed by more than one skill, and every filesystem path a skill
-body tells the agent to read.
+body tells the agent to read. It also checks the suite's coverage of itself: a skill with
+no dispatch cases, quoted trigger phrases no case exercises, and whether any description
+has changed since the results were recorded.
+
+That last group matters more than it sounds. Layer 1 only knows about skills it has cases
+for, so adding a sixth skill leaves the report saying **18/19** — which means "18 of the 19
+things I happen to test" and reads exactly like "everything is fine". The coverage checks
+turn that silence into an error.
 
 **Layer 1 — dispatch.** Frozen prompts run through the real CLI. Does each one still
 reach the skill it's supposed to reach, and do the prompts that should reach *nothing*
@@ -74,6 +81,42 @@ deterministically-failing case can't retry forever.
 
 Exit codes are the report-by-exception contract: `0` nothing to act on, `1` findings,
 `2` couldn't run.
+
+### Run it when drift actually happens, not on a calendar
+
+Skill dispatch doesn't drift because time passed. It drifts on two events: a model or CLI
+upgrade, or an edited skill description. A monthly cron mostly spends 19 calls confirming
+nothing changed.
+
+```bash
+python3 run.py --if-changed
+```
+
+Skips dispatch entirely and exits 0 when nothing that invalidates prior results has
+changed. When something has, it says what and re-dispatches. `cases/skill_baseline.json`
+holds the description hashes plus the CLI version and model the last results were produced
+against; `--accept-baseline` records a new one **after** a run has been reviewed, never to
+silence a warning. Description hashes are whitespace-normalized, so rewrapping a paragraph
+doesn't trigger a paid re-run.
+
+That baseline is committed, not gitignored. It's part of the specification, like the frozen
+cases — a fresh clone with no baseline can't tell an unchanged description from an unseen
+one, and "everything looks new" fails the same way "everything looks fine" does.
+
+### Layer 0 at edit time
+
+`hooks/lint_on_skill_edit.sh` is a `PostToolUse` hook on `Write|Edit`. It runs the static
+layer only when a `SKILL.md` is touched, prints nothing unless there are errors, and always
+exits 0 — a linter that can block an edit is a linter that gets removed. Registered in
+`~/.claude/settings.json`:
+
+```json
+{ "hooks": { "PostToolUse": [ { "matcher": "Write|Edit", "hooks": [
+  { "type": "command", "command": "/path/to/hooks/lint_on_skill_edit.sh", "timeout": 30 }
+] } ] } }
+```
+
+Layer 1 is deliberately not in the hook. It costs real calls.
 
 ## Install
 
@@ -137,6 +180,15 @@ skill to look at and the wrong failure mode.
 Five skills: `car-check`, `improvement-notes`, `interview-loop`, `jira-ticket-builder`,
 `model-baseline`. Zero errors. All eight concrete paths referenced across the five bodies
 resolve.
+
+Dispatch coverage is complete — every installed skill is named by at least one case.
+
+The `untested_trigger` check earned its place immediately: **`model-baseline` quotes three
+trigger phrases and the suite exercises none of them verbatim**, including
+`"test Opus 5.2 when it drops"` — the exact family the one failing case belongs to. The
+suite tests a variant of that phrase with the model name removed, which is precisely the
+distinction the failure turns on. `car-check` quotes eleven untested phrases, the largest
+uncovered surface in the set.
 
 Two warnings, both real and both load-bearing for the case set:
 `jira-ticket-builder` and `model-baseline` state **no non-trigger boundary** in their

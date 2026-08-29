@@ -16,6 +16,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from harness import baseline as baseline_mod
 from harness import preflight as preflight_mod
 from harness import report as report_mod
 from harness import routing
@@ -39,6 +40,20 @@ def main() -> int:
     p.add_argument("--predictions", type=Path, default=None, help="resumable JSONL of dispatch results")
     p.add_argument("--lint-only", action="store_true")
     p.add_argument("--retry-failed", action="store_true", help="re-dispatch cases previously recorded as errors")
+    p.add_argument(
+        "--if-changed",
+        action="store_true",
+        help="skip dispatch when nothing that invalidates prior results has changed "
+        "(no new/edited skill description, same CLI and model). This is the scheduled-run entry point: "
+        "drift is caused by events, not by dates.",
+    )
+    p.add_argument(
+        "--accept-baseline",
+        action="store_true",
+        help="record the current descriptions, CLI, and model as the baseline. Run only after a "
+        "dispatch run has been reviewed -- never to silence a drift warning.",
+    )
+    p.add_argument("--baseline", type=Path, default=Path(__file__).parent / "cases" / "skill_baseline.json")
     args = p.parse_args()
 
     roots = args.skills_dir or [Path.home() / ".claude" / "skills"]
@@ -47,7 +62,12 @@ def main() -> int:
         print(f"No SKILL.md found under: {', '.join(str(r) for r in roots)}", file=sys.stderr)
         return 2
 
-    findings = run_lint(skills, Path.home())
+    cases, traps = load_cases(args.cases)
+    version = baseline_mod.cli_version()
+    base = baseline_mod.Baseline.load(args.baseline)
+    drift = base.drift(skills, version, args.model)
+
+    findings = run_lint(skills, Path.home(), cases=cases, drift_reasons=drift)
     lint_errors = [f for f in findings if f.severity == "error"]
 
     print(f"{len(skills)} skills: {', '.join(s.dir.name for s in skills)}", file=sys.stderr)
@@ -56,7 +76,15 @@ def main() -> int:
 
     pre = preflight_mod.check()
     outcomes = None
-    cases, traps = load_cases(args.cases)
+
+    if args.if_changed and not drift:
+        print("\nNothing invalidating prior results has changed; dispatch skipped.", file=sys.stderr)
+        print(f"  baseline: {base.cli_version or 'unset'} / {base.model or 'unset'}", file=sys.stderr)
+        args.lint_only = True
+    elif args.if_changed:
+        print(f"\nRe-dispatching, {len(drift)} reason(s):", file=sys.stderr)
+        for r in drift:
+            print(f"  - {r}", file=sys.stderr)
 
     if args.lint_only:
         print("\nLint only; dispatch layer skipped.", file=sys.stderr)
@@ -110,6 +138,10 @@ def main() -> int:
         )
     )
     print(f"\nReport: {args.out}", file=sys.stderr)
+
+    if args.accept_baseline:
+        base.save(args.baseline, skills, version, args.model)
+        print(f"Baseline recorded: {args.baseline}", file=sys.stderr)
 
     if not args.lint_only and not pre.ok:
         return 2

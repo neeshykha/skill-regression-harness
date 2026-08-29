@@ -13,8 +13,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from harness.discover import Skill, is_templated, parse_frontmatter  # noqa: E402
-from harness.lint import check_duplicate_names, check_name_matches_dir, check_references, check_trigger_collisions  # noqa: E402
+from harness.baseline import Baseline, description_hash  # noqa: E402
+from harness.discover import Skill, discover, is_templated, parse_frontmatter  # noqa: E402
+from harness.lint import (  # noqa: E402
+    check_dispatch_coverage,
+    check_duplicate_names,
+    check_name_matches_dir,
+    check_references,
+    check_trigger_collisions,
+    check_untested_triggers,
+)
 from harness.preflight import envelope_error  # noqa: E402
 from harness.routing import NO_SKILL, parse_stream  # noqa: E402
 
@@ -235,6 +243,91 @@ class TestCaseSet(unittest.TestCase):
         """A suite of only positive cases cannot detect over-triggering, which is
         the failure mode a skill with no stated boundary actually has."""
         self.assertGreaterEqual(sum(1 for c in self.data["cases"] if c["expected"] == "none"), 5)
+
+
+class TestDispatchCoverage(unittest.TestCase):
+    def test_skill_with_no_cases_is_an_error(self):
+        """The harness's worst silent failure: a sixth skill appears, Layer 1
+        still reports 18/19, and nothing says the new one is untested."""
+        skills = [make_skill("car-check", dirname="car-check"), make_skill("brand-new", dirname="brand-new")]
+        cases = [{"id": "c1", "prompt": "x", "expected": "car-check", "acceptable": ["car-check"]}]
+        findings = check_dispatch_coverage(skills, cases)
+        self.assertEqual([f.skill for f in findings], ["brand-new"])
+        self.assertEqual(findings[0].severity, "error")
+
+    def test_skill_named_only_in_acceptable_counts_as_covered(self):
+        skills = [make_skill("interview-loop", dirname="interview-loop")]
+        cases = [{"id": "c1", "prompt": "x", "expected": "none", "acceptable": ["none", "interview-loop"]}]
+        self.assertEqual(check_dispatch_coverage(skills, cases), [])
+
+    def test_live_skill_set_is_fully_covered(self):
+        path = Path(__file__).resolve().parent.parent / "cases" / "routing_cases.json"
+        cases = json.loads(path.read_text())["cases"]
+        skills = discover([Path.home() / ".claude" / "skills"])
+        if not skills:
+            self.skipTest("no installed skills on this machine")
+        self.assertEqual(check_dispatch_coverage(skills, cases), [])
+
+
+class TestUntestedTriggers(unittest.TestCase):
+    def test_quoted_phrase_with_no_case_is_reported(self):
+        s = make_skill("mb", description='Say "run the baseline" or "test it when it drops".', dirname="mb")
+        cases = [{"id": "c1", "prompt": "run the baseline against Opus", "expected": "mb", "acceptable": ["mb"]}]
+        findings = check_untested_triggers([s], cases)
+        self.assertEqual(len(findings), 1)
+        self.assertIn("test it when it drops", findings[0].detail)
+        self.assertNotIn('"run the baseline"', findings[0].detail)
+
+    def test_fully_exercised_description_is_silent(self):
+        s = make_skill("mb", description='Say "run the baseline".', dirname="mb")
+        cases = [{"id": "c1", "prompt": "Run the baseline!", "expected": "mb", "acceptable": ["mb"]}]
+        self.assertEqual(check_untested_triggers([s], cases), [])
+
+
+class TestBaseline(unittest.TestCase):
+    def setUp(self):
+        self.skills = [make_skill("a", description="Do the thing.", dirname="a")]
+        self.base = Baseline(
+            descriptions={"a": description_hash("Do the thing.")}, cli_version="2.1.220", model="sonnet"
+        )
+
+    def test_no_drift_when_nothing_changed(self):
+        self.assertEqual(self.base.drift(self.skills, "2.1.220", "sonnet"), [])
+
+    def test_edited_description_drifts(self):
+        edited = [make_skill("a", description="Do the thing, but also other things.", dirname="a")]
+        reasons = self.base.drift(edited, "2.1.220", "sonnet")
+        self.assertEqual(len(reasons), 1)
+        self.assertIn("description changed", reasons[0])
+
+    def test_reflowed_description_does_not_drift(self):
+        """Whitespace normalization: rewrapping a long description is not a
+        semantic change and must not force a paid re-run."""
+        reflowed = [make_skill("a", description="Do   the\n  thing.", dirname="a")]
+        self.assertEqual(self.base.drift(reflowed, "2.1.220", "sonnet"), [])
+
+    def test_cli_upgrade_drifts(self):
+        reasons = self.base.drift(self.skills, "2.2.0", "sonnet")
+        self.assertIn("CLI changed", reasons[0])
+
+    def test_model_change_drifts(self):
+        reasons = self.base.drift(self.skills, "2.1.220", "opus")
+        self.assertIn("model changed", reasons[0])
+
+    def test_new_and_removed_skills_both_drift(self):
+        two = self.skills + [make_skill("b", description="Another.", dirname="b")]
+        self.assertTrue(any("new skill" in r for r in self.base.drift(two, "2.1.220", "sonnet")))
+        self.assertTrue(any("removed" in r for r in self.base.drift([], "2.1.220", "sonnet")))
+
+    def test_empty_baseline_treats_everything_as_new(self):
+        reasons = Baseline().drift(self.skills, "2.1.220", "sonnet")
+        self.assertTrue(any("never dispatch-tested" in r for r in reasons))
+
+    def test_roundtrip(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "baseline.json"
+            Baseline().save(p, self.skills, "2.1.220", "sonnet")
+            self.assertEqual(Baseline.load(p).drift(self.skills, "2.1.220", "sonnet"), [])
 
 
 if __name__ == "__main__":

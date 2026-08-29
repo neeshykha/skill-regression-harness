@@ -183,13 +183,88 @@ def check_trigger_collisions(skills: list[Skill]) -> list[Finding]:
     return findings
 
 
-def run_lint(skills: list[Skill], home: Path) -> list[Finding]:
+def check_dispatch_coverage(skills: list[Skill], cases: list[dict]) -> list[Finding]:
+    """A skill with no dispatch cases is untested and reports as untested nowhere.
+
+    This is the harness's worst silent failure: add a sixth skill and Layer 1
+    still reports 18/19, because the suite only knows about skills it has cases
+    for. "18/19" then means "18 of the 19 things I happen to test", which reads
+    identically to "everything is fine".
+    """
+    covered = {c["expected"] for c in cases} | {a for c in cases for a in c.get("acceptable", [])}
+    findings = []
+    for s in skills:
+        if s.dir.name not in covered:
+            findings.append(
+                Finding(
+                    "dispatch_coverage",
+                    ERROR,
+                    s.dir.name,
+                    "no dispatch case expects this skill; Layer 1 does not test it at all",
+                )
+            )
+    return findings
+
+
+def check_untested_triggers(skills: list[Skill], cases: list[dict], max_listed: int = 6) -> list[Finding]:
+    """Trigger phrases a description quotes but no case prompt exercises.
+
+    A quoted phrase is a promise the description makes. Testing two of six means
+    the other four are unverified, and the report's pass rate says nothing about
+    them -- which is how model-baseline's claimed "test Opus 5.2 when it drops"
+    family went unexamined until one variant of it was written down as a case.
+    """
+    prompts = " ".join(_norm(c["prompt"]) for c in cases)
+    findings = []
+    for s in skills:
+        untested = []
+        for raw in _QUOTED.findall(s.description):
+            phrase = _norm(raw)
+            if not phrase or len(phrase.split()) < 2 or phrase in _STOPWORDS:
+                continue
+            if phrase not in prompts and phrase not in untested:
+                untested.append(phrase)
+        if untested:
+            shown = ", ".join(f'"{p}"' for p in untested[:max_listed])
+            more = f" (+{len(untested) - max_listed} more)" if len(untested) > max_listed else ""
+            findings.append(
+                Finding(
+                    "untested_trigger",
+                    INFO,
+                    s.dir.name,
+                    f"{len(untested)} quoted trigger phrase(s) exercised by no case: {shown}{more}",
+                )
+            )
+    return findings
+
+
+def check_baseline_drift(reasons: list[str]) -> list[Finding]:
+    """Recorded dispatch results are only valid for the baseline that produced
+    them. A changed description or a new CLI does not error anything -- the
+    report still renders and the pass rate stays green while meaning less."""
+    return [
+        Finding("baseline_drift", WARN, reason.split(":")[0].strip(), f"dispatch results may be stale — {reason}")
+        for reason in reasons
+    ]
+
+
+def run_lint(
+    skills: list[Skill],
+    home: Path,
+    cases: list[dict] | None = None,
+    drift_reasons: list[str] | None = None,
+) -> list[Finding]:
     findings: list[Finding] = []
     findings += check_frontmatter(skills)
     findings += check_name_matches_dir(skills)
     findings += check_duplicate_names(skills)
     findings += check_references(skills, home)
+    if cases is not None:
+        findings += check_dispatch_coverage(skills, cases)
+    findings += check_baseline_drift(drift_reasons or [])
     findings += check_trigger_collisions(skills)
     findings += check_negative_guidance(skills)
+    if cases is not None:
+        findings += check_untested_triggers(skills, cases)
     order = {ERROR: 0, WARN: 1, INFO: 2}
     return sorted(findings, key=lambda f: (order[f.severity], f.check, f.skill))
