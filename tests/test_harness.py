@@ -17,6 +17,7 @@ from harness.baseline import Baseline, description_hash  # noqa: E402
 from harness.discover import Skill, discover, is_templated, parse_frontmatter  # noqa: E402
 from harness.lint import (  # noqa: E402
     check_dispatch_coverage,
+    check_docs_counts,
     check_duplicate_names,
     check_name_matches_dir,
     check_references,
@@ -299,6 +300,68 @@ class TestDispatchSafety(unittest.TestCase):
     def test_sets_the_recursion_guard_in_the_child_environment(self):
         env = self._captured_call()["env"]
         self.assertEqual(env.get(routing_mod.RECURSION_GUARD), "1")
+
+
+class TestDocsCounts(unittest.TestCase):
+    """Pinned against the drift that shipped: a README claiming 19 prompts /
+    six groups / five negatives while the file held 23 / seven / eight."""
+
+    CASES = [
+        {"id": "a-01", "prompt": "x", "expected": "car-check", "acceptable": ["car-check"]},
+        {"id": "a-02", "prompt": "y", "expected": "none", "acceptable": ["none"]},
+        {"id": "b-01", "prompt": "z", "expected": "none", "acceptable": ["none"]},
+    ]
+    TRAPS = [{"label": "a", "ids": ["a-01", "a-02"]}, {"label": "b", "ids": ["b-01"]}]
+
+    def _readme(self, text):
+        d = Path(tempfile.mkdtemp())
+        p = d / "README.md"
+        p.write_text(text)
+        return p
+
+    def test_matching_counts_are_silent(self):
+        p = self._readme("holds 3 frozen prompts across two confusable groups. Two expect *no* skill to fire.")
+        self.assertEqual(check_docs_counts(self.CASES, self.TRAPS, p), [])
+
+    def test_number_words_and_digits_both_parse(self):
+        p = self._readme("holds three frozen prompts across 2 confusable groups. 2 expect no skill to fire.")
+        self.assertEqual(check_docs_counts(self.CASES, self.TRAPS, p), [])
+
+    def test_wrong_count_is_an_error_naming_both_numbers(self):
+        p = self._readme("holds 19 frozen prompts across six confusable groups. Five expect *no* skill to fire.")
+        findings = check_docs_counts(self.CASES, self.TRAPS, p)
+        self.assertEqual([f.severity for f in findings], ["error", "error", "error"])
+        self.assertIn("README says 19 frozen prompts; routing_cases.json has 3", findings[0].detail)
+
+    def test_claims_wrap_across_lines(self):
+        """The real README wraps mid-sentence; matching must survive newlines."""
+        p = self._readme("holds 3 frozen prompts across\ntwo confusable groups, each with\nan `expected` skill. Two expect *no*\nskill to fire.")
+        self.assertEqual(check_docs_counts(self.CASES, self.TRAPS, p), [])
+
+    def test_unparseable_readme_is_info_not_error(self):
+        """Rewording the prose should report a silence, never manufacture a failure."""
+        p = self._readme("This README says nothing about the case set at all.")
+        findings = check_docs_counts(self.CASES, self.TRAPS, p)
+        self.assertEqual({f.severity for f in findings}, {"info"})
+
+    def test_missing_readme_is_info(self):
+        findings = check_docs_counts(self.CASES, self.TRAPS, Path(tempfile.mkdtemp()) / "nope.md")
+        self.assertEqual([f.severity for f in findings], ["info"])
+
+    def test_traps_not_partitioning_cases_blocks_the_comparison(self):
+        """An ungrouped case makes the group count meaningless, so report that
+        instead of asserting a number derived from a broken grouping."""
+        p = self._readme("holds 3 frozen prompts across two confusable groups. Two expect *no* skill to fire.")
+        findings = check_docs_counts(self.CASES, [{"label": "a", "ids": ["a-01"]}], p)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].severity, "error")
+        self.assertIn("does not partition", findings[0].detail)
+
+    def test_live_readme_matches_the_live_case_set(self):
+        root = Path(__file__).resolve().parent.parent
+        data = json.loads((root / "cases" / "routing_cases.json").read_text())
+        findings = check_docs_counts(data["cases"], data["traps"], root / "README.md")
+        self.assertEqual([f for f in findings if f.severity == "error"], [])
 
 
 class TestDispatchCoverage(unittest.TestCase):

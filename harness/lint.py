@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .discover import Skill, is_templated
+from .routing import NO_SKILL
 
 ERROR = "error"
 WARN = "warn"
@@ -238,6 +239,101 @@ def check_untested_triggers(skills: list[Skill], cases: list[dict], max_listed: 
     return findings
 
 
+# The README spells some counts as digits and some as words in the same
+# sentence ("23 frozen prompts across seven confusable groups"), so both parse.
+_NUMBER_WORDS = {
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+    "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
+}
+
+# Matched against whitespace-normalized README text: these sentences wrap across
+# lines in the source, so `\s+` is doing real work here rather than being defensive.
+_DOC_CLAIMS = (
+    ("frozen prompts", re.compile(r"holds\s+(\w+)\s+frozen prompts", re.I)),
+    ("confusable groups", re.compile(r"across\s+(\w+)\s+confusable groups", re.I)),
+    ("cases expecting no skill", re.compile(r"(\w+)\s+expect\s+\*?no\*?\s+skill to fire", re.I)),
+)
+
+
+def _as_int(token: str) -> int | None:
+    token = token.strip().lower()
+    return int(token) if token.isdigit() else _NUMBER_WORDS.get(token)
+
+
+def check_docs_counts(cases: list[dict], traps: list[dict], readme: Path) -> list[Finding]:
+    """The README describes the case set in prose, and prose drifts from the file.
+
+    This is the check that had to be added by hand after the drift it detects
+    shipped. The README's spec paragraph claimed 19 prompts across six groups
+    with five expecting no skill, four lines above its own results section
+    reporting 21/23. The case set had grown to 23 across seven groups when
+    skill-check was added, and the prose did not follow. The "five" was worse:
+    it was wrong before the growth too, since the 19-case set already had seven
+    negative cases. Nothing failed, nothing errored, and the numbers were copied
+    out of the README into other documents before anyone counted the file.
+
+    Same failure mode this harness exists for, one level up. A skill description
+    that no longer matches the skill is caught by Layer 1; a README that no
+    longer matches the case set was caught by nothing.
+
+    ERROR rather than WARN because a mismatch is provable from two files with no
+    model in the loop, exactly like a broken path reference. A README this can't
+    parse at all degrades to INFO instead, so rewording the prose reports a
+    silence rather than manufacturing a failure.
+    """
+    if not readme.exists():
+        return [Finding("docs_counts", INFO, readme.name, f"no README found at {readme}; counts not checked")]
+
+    trap_ids = [i for t in traps for i in t.get("ids", [])]
+    case_ids = {c["id"] for c in cases}
+    orphans = sorted(case_ids - set(trap_ids))
+    dupes = len(trap_ids) - len(set(trap_ids))
+    if orphans or dupes:
+        # Guard, not a side quest: "seven confusable groups" only means anything
+        # while `traps` partitions `cases`. Comparing a group count against the
+        # README while the grouping is broken would assert a meaningless number.
+        detail = (
+            f"`traps` does not partition `cases`, so the group count is not meaningful: "
+            f"{len(orphans)} case(s) in no trap group"
+            + (f" ({', '.join(orphans[:5])})" if orphans else "")
+            + f", {dupes} duplicate id(s) across groups"
+        )
+        return [Finding("docs_counts", ERROR, "routing_cases.json", detail)]
+
+    actual = {
+        "frozen prompts": len(cases),
+        "confusable groups": len(traps),
+        "cases expecting no skill": sum(1 for c in cases if c.get("expected") == NO_SKILL),
+    }
+
+    findings = []
+    text = " ".join(readme.read_text().split())
+    for label, pattern in _DOC_CLAIMS:
+        m = pattern.search(text)
+        if not m:
+            findings.append(
+                Finding("docs_counts", INFO, readme.name, f"README states no {label} count to check")
+            )
+            continue
+        claimed = _as_int(m.group(1))
+        if claimed is None:
+            findings.append(
+                Finding("docs_counts", INFO, readme.name, f'{label}: cannot read "{m.group(1)}" as a number')
+            )
+        elif claimed != actual[label]:
+            findings.append(
+                Finding(
+                    "docs_counts",
+                    ERROR,
+                    readme.name,
+                    f"README says {claimed} {label}; routing_cases.json has {actual[label]}",
+                )
+            )
+    return findings
+
+
 def check_baseline_drift(reasons: list[str]) -> list[Finding]:
     """Recorded dispatch results are only valid for the baseline that produced
     them. A changed description or a new CLI does not error anything -- the
@@ -253,6 +349,8 @@ def run_lint(
     home: Path,
     cases: list[dict] | None = None,
     drift_reasons: list[str] | None = None,
+    traps: list[dict] | None = None,
+    readme: Path | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = []
     findings += check_frontmatter(skills)
@@ -261,6 +359,8 @@ def run_lint(
     findings += check_references(skills, home)
     if cases is not None:
         findings += check_dispatch_coverage(skills, cases)
+    if cases is not None and traps is not None:
+        findings += check_docs_counts(cases, traps, readme or Path(__file__).resolve().parent.parent / "README.md")
     findings += check_baseline_drift(drift_reasons or [])
     findings += check_trigger_collisions(skills)
     findings += check_negative_guidance(skills)

@@ -68,7 +68,7 @@ def main() -> int:
     base = baseline_mod.Baseline.load(args.baseline)
     drift = base.drift(skills, version, args.model)
 
-    findings = run_lint(skills, Path.home(), cases=cases, drift_reasons=drift)
+    findings = run_lint(skills, Path.home(), cases=cases, drift_reasons=drift, traps=traps)
     lint_errors = [f for f in findings if f.severity == "error"]
 
     print(f"{len(skills)} skills: {', '.join(s.dir.name for s in skills)}", file=sys.stderr)
