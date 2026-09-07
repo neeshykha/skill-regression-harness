@@ -17,9 +17,9 @@ no dispatch cases, quoted trigger phrases no case exercises, and whether any des
 has changed since the results were recorded.
 
 That last group matters more than it sounds. Layer 1 only knows about skills it has cases
-for, so adding a sixth skill leaves the report saying **18/19** — which means "18 of the 19
-things I happen to test" and reads exactly like "everything is fine". The coverage checks
-turn that silence into an error.
+for, so adding a seventh skill tomorrow would leave the report still scoring **23 cases** —
+which means "the 23 things I happen to test" and reads exactly like "everything is fine".
+The coverage checks turn that silence into an error.
 
 **Layer 1 — dispatch.** Frozen prompts run through the real CLI. Does each one still
 reach the skill it's supposed to reach, and do the prompts that should reach *nothing*
@@ -136,8 +136,8 @@ reports nothing, and a check that silently stops reporting is worse than no chec
 
 ## The case set is a specification, not ground truth
 
-`cases/routing_cases.json` holds 19 frozen prompts across six confusable groups, each with
-an `expected` skill, an `acceptable` set, and a written reason it exists. Five expect *no*
+`cases/routing_cases.json` holds 23 frozen prompts across seven confusable groups, each with
+an `expected` skill, an `acceptable` set, and a written reason it exists. Eight expect *no*
 skill to fire — a suite of only positive cases can't detect over-triggering, which is the
 failure mode that actually shows up.
 
