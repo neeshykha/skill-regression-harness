@@ -333,4 +333,4 @@ cause the damage it's meant to prevent.
 
 Output conformance is also out of scope for now. Only `car-check` runs hermetically enough
 to assert on its output; the rest need live Salesforce, Gmail, or calendar. Dispatch is the
-layer that generalizes across all five.
+layer that generalizes across all of them.
