@@ -379,6 +379,26 @@ class TestDispatchCoverage(unittest.TestCase):
         cases = [{"id": "c1", "prompt": "x", "expected": "none", "acceptable": ["none", "interview-loop"]}]
         self.assertEqual(check_dispatch_coverage(skills, cases), [])
 
+    def test_manual_only_skill_is_covered_by_a_guard_case(self):
+        """toil-mining sets disable-model-invocation, so no positive case can
+        pass. A negative case naming it in `guards` tests the flag instead."""
+        s = make_skill("toil-mining", dirname="toil-mining")
+        s.frontmatter["disable-model-invocation"] = "true"
+        cases = [{"id": "c1", "prompt": "mine toil", "expected": "none", "acceptable": ["none"], "guards": ["toil-mining"]}]
+        self.assertEqual(check_dispatch_coverage([s], cases), [])
+
+    def test_guard_does_not_cover_a_dispatchable_skill(self):
+        """Otherwise `guards` marks any skill covered without testing it."""
+        s = make_skill("brand-new", dirname="brand-new")
+        cases = [{"id": "c1", "prompt": "x", "expected": "none", "acceptable": ["none"], "guards": ["brand-new"]}]
+        self.assertEqual([f.skill for f in check_dispatch_coverage([s], cases)], ["brand-new"])
+
+    def test_guard_on_a_positive_case_does_not_count(self):
+        s = make_skill("toil-mining", dirname="toil-mining")
+        s.frontmatter["disable-model-invocation"] = "true"
+        cases = [{"id": "c1", "prompt": "x", "expected": "car-check", "acceptable": ["car-check"], "guards": ["toil-mining"]}]
+        self.assertEqual([f.skill for f in check_dispatch_coverage([s], cases)], ["toil-mining"])
+
     def test_live_skill_set_is_fully_covered(self):
         path = Path(__file__).resolve().parent.parent / "cases" / "routing_cases.json"
         cases = json.loads(path.read_text())["cases"]

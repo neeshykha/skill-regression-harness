@@ -9,7 +9,11 @@
     "likely to be a wrong expectation as a wrong dispatch, and should be adjudicated",
     "by hand. Every run after that is drift detection against a set already argued",
     "over. Editing a case AFTER seeing a run fail it is how a regression suite stops",
-    "measuring anything -- record the reason in the repo when it happens."
+    "measuring anything -- record the reason in the repo when it happens.",
+    "",
+    "`guards` names a manual-only skill (disable-model-invocation: true) that a",
+    "negative case protects. It counts as coverage for that skill and nothing else;",
+    "see check_dispatch_coverage."
   ],
   "cases": [
     {
@@ -242,6 +246,359 @@
       ],
       "trap": "skillcheck_scope",
       "why": "Skill-shaped but it is discovery, not health. skill-check disclaims it; the weekly skill scan owns it and is a scheduled task, not a dispatchable skill."
+    },
+    {
+      "id": "sc-05",
+      "prompt": "Did the Opus 5.2 upgrade break any of my skills?",
+      "expected": "skill-check",
+      "acceptable": [
+        "skill-check"
+      ],
+      "trap": "skillcheck_scope",
+      "why": "The description claims 'whether a model upgrade broke his skills'. The model name is model-baseline's hook, so this is the prompt most likely to be stolen."
+    },
+    {
+      "id": "sc-06",
+      "prompt": "That skill check took forever. How could we have run it faster?",
+      "expected": "improvement-notes",
+      "acceptable": [
+        "improvement-notes"
+      ],
+      "trap": "skillcheck_scope",
+      "why": "Says 'skill check' verbatim but asks for an audit of the session, which skill-check explicitly hands to improvement-notes. skill-check firing is the failure."
+    },
+    {
+      "id": "gbb-01",
+      "prompt": "I want to turn the sunny corner by the mailbox into a native pollinator bed, roughly 12 by 8. Plan it out.",
+      "expected": "garden-bed-build",
+      "acceptable": [
+        "garden-bed-build"
+      ],
+      "trap": "garden_bed_scope",
+      "why": "Clear positive: a new perennial bed with dimensions and a request to plan it."
+    },
+    {
+      "id": "gbb-02",
+      "prompt": "same deliverable as the half-moon, but for the strip along the driveway",
+      "expected": "garden-bed-build",
+      "acceptable": [
+        "garden-bed-build"
+      ],
+      "trap": "garden_bed_scope",
+      "why": "Verbatim trigger phrase from the description, with no plant or bed vocabulary beyond 'strip'."
+    },
+    {
+      "id": "gbb-03",
+      "prompt": "Prairie Moon has these 9-plant pollinator power packs. How would I lay a few of them out along a 20 ft fence?",
+      "expected": "garden-bed-build",
+      "acceptable": [
+        "garden-bed-build"
+      ],
+      "trap": "garden_bed_scope",
+      "why": "Kit-shopping paraphrase the description claims; never says 'plan' or 'design'."
+    },
+    {
+      "id": "gbb-04",
+      "prompt": "Plan my raised vegetable beds for spring: tomatoes, peppers, and squash.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "garden_bed_scope",
+      "why": "Near-miss the description disclaims: bed planning, but annual vegetables. diy-home-context firing here scores as outside tested set, not a miss."
+    },
+    {
+      "id": "gbb-05",
+      "prompt": "What's the cheapest way to buy everything for both beds this fall? I'd rather not place six different orders.",
+      "expected": "garden-bed-build",
+      "acceptable": [
+        "garden-bed-build"
+      ],
+      "trap": "garden_bed_scope",
+      "why": "The order-optimizer trigger: a shopping question with no bed-design vocabulary, which only makes sense with the skill's plans and price catalog."
+    },
+    {
+      "id": "gbb-06",
+      "prompt": "The stone steps down to the meadow shift after every rain. How do I stabilize them?",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "garden_bed_scope",
+      "why": "Hardscape and drainage, both handed to diy-home-context by name in the description. 'Meadow' is the bait."
+    },
+    {
+      "id": "gbb-07",
+      "prompt": "Will swamp milkweed survive in Atlanta clay?",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "garden_bed_scope",
+      "why": "A question about one plant, which the description disclaims. Native-plant vocabulary with no bed attached."
+    },
+    {
+      "id": "gbb-08",
+      "prompt": "Take another pass at the half-moon meadow plan and swap the bluestar for something that blooms in August.",
+      "expected": "garden-bed-build",
+      "acceptable": [
+        "garden-bed-build"
+      ],
+      "trap": "garden_bed_scope",
+      "why": "The revision trigger ('a second pass or revision of an existing plan'), which no other case exercises."
+    },
+    {
+      "id": "flow-01",
+      "prompt": "Spec a flow for reassigning a case back to the queue when the owner has been offline for an hour.",
+      "expected": "flow-spec-builder",
+      "acceptable": [
+        "flow-spec-builder"
+      ],
+      "trap": "flow_spec_scope",
+      "why": "Verbatim 'spec a flow for'."
+    },
+    {
+      "id": "flow-02",
+      "prompt": "When a case gets created from email, I want Priority set from the account tier. Would this be before-save or after-save?",
+      "expected": "flow-spec-builder",
+      "acceptable": [
+        "flow-spec-builder"
+      ],
+      "trap": "flow_spec_scope",
+      "why": "The description claims this question specifically."
+    },
+    {
+      "id": "flow-03",
+      "prompt": "Why didn't the first-response milestone flow fire on case 00268386?",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "flow_spec_scope",
+      "why": "Debugging an existing flow on a real case, not designing one. flow-spec-builder states no non-trigger boundary and the case number is jira-ticket-builder's bait, so this catches over-firing from both. salesforce-iapartments firing scores as outside tested set."
+    },
+    {
+      "id": "flow-04",
+      "prompt": "Case 00268386 needs the reopen flow fixed. Build me the Jira ticket for it.",
+      "expected": "jira-ticket-builder",
+      "acceptable": [
+        "jira-ticket-builder"
+      ],
+      "trap": "flow_spec_scope",
+      "why": "Flow vocabulary plus an explicit ticket request. jira-ticket-builder owns it; flow-spec-builder is the failure."
+    },
+    {
+      "id": "pl-01",
+      "prompt": "I'm creating #sleep, make it for sleep tracking",
+      "expected": "phonelog-channel",
+      "acceptable": [
+        "phonelog-channel"
+      ],
+      "trap": "phonelog_scope",
+      "why": "The claimed 'I'm creating #fitness' phrasing with a new channel name, so it tests the pattern rather than a memorized string."
+    },
+    {
+      "id": "pl-02",
+      "prompt": "The PhoneLog bot has gone quiet in #fitness and pings are coming through iMessage instead. What broke?",
+      "expected": "phonelog-channel",
+      "acceptable": [
+        "phonelog-channel"
+      ],
+      "trap": "phonelog_scope",
+      "why": "The troubleshooting trigger ('bot silent, pings falling back to iMessage'). No case in this group asks for a send: MCP tools are not on the dispatch denylist."
+    },
+    {
+      "id": "pl-03",
+      "prompt": "How do I get a Discord bot to reply inside a thread instead of the channel?",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "phonelog_scope",
+      "why": "The description's own non-trigger: a one-off Discord API question unrelated to PhoneLog."
+    },
+    {
+      "id": "ss-01",
+      "prompt": "ship sunday",
+      "expected": "ship-sunday",
+      "acceptable": [
+        "ship-sunday"
+      ],
+      "trap": "ship_sunday_scope",
+      "why": "Bare verbatim trigger."
+    },
+    {
+      "id": "ss-02",
+      "prompt": "Run the weekly increment on the portfolio.",
+      "expected": "ship-sunday",
+      "acceptable": [
+        "ship-sunday"
+      ],
+      "trap": "ship_sunday_scope",
+      "why": "Paraphrase of 'run the weekly increment'."
+    },
+    {
+      "id": "ss-03",
+      "prompt": "Turn on GitHub Pages for my deflection-audit repo.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "ship_sunday_scope",
+      "why": "The exact gh step ship-sunday performs mid-run, asked as a one-off. No non-trigger boundary in the description, and a false fire here starts a public increment."
+    },
+    {
+      "id": "apa-01",
+      "prompt": "I'm about to build a small web app that tracks my garden plantings. What stack should I use, and are there similar projects I should look at first?",
+      "expected": "advise-project-approach",
+      "acceptable": [
+        "advise-project-approach"
+      ],
+      "trap": "advise_scope",
+      "why": "Stack selection plus comparables, both claimed. The garden vocabulary is bait for garden-bed-build."
+    },
+    {
+      "id": "apa-02",
+      "prompt": "Look over the skill-regression-harness repo and tell me what you'd change about its architecture.",
+      "expected": "advise-project-approach",
+      "acceptable": [
+        "advise-project-approach"
+      ],
+      "trap": "advise_scope",
+      "why": "Repo analysis and architecture critique, both claimed. The repo name is bait for skill-check."
+    },
+    {
+      "id": "apa-03",
+      "prompt": "This test fails with KeyError: 'expected' on line 212. What's wrong?",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "advise_scope",
+      "why": "The narrow single-bug debugging the description says to avoid."
+    },
+    {
+      "id": "aiw-01",
+      "prompt": "Audit this README for AI tells before I push it.",
+      "expected": "avoid-ai-writing",
+      "acceptable": [
+        "avoid-ai-writing"
+      ],
+      "trap": "writing_audit_scope",
+      "why": "'Audit a README' is claimed. No README is attached, so the decision rests on intent alone."
+    },
+    {
+      "id": "aiw-02",
+      "prompt": "Does this sound like ChatGPT wrote it? \"In today's fast-paced landscape, it's worth noting that support teams must leverage AI.\"",
+      "expected": "avoid-ai-writing",
+      "acceptable": [
+        "avoid-ai-writing"
+      ],
+      "trap": "writing_audit_scope",
+      "why": "Detect-only mode, paraphrased, never saying 'AI-isms'."
+    },
+    {
+      "id": "aiw-03",
+      "prompt": "Fix the typos in this: \"The meetign got moved to Thrusday at 3.\"",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "writing_audit_scope",
+      "why": "Prose editing with no AI angle. The description states no boundary and the global CLAUDE.md loads a writing-style rule into every session, so over-firing on any edit is the likely failure."
+    },
+    {
+      "id": "nlm-01",
+      "prompt": "Create a podcast about the Salesforce flow inventory in NotebookLM.",
+      "expected": "notebooklm",
+      "acceptable": [
+        "notebooklm"
+      ],
+      "trap": "notebooklm_scope",
+      "why": "The claimed 'create a podcast about X'."
+    },
+    {
+      "id": "nlm-02",
+      "prompt": "Summarize this week's Hard Fork episode for me.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "notebooklm_scope",
+      "why": "Podcast-shaped, but consuming one rather than generating it. Third-party description with no boundary."
+    },
+    {
+      "id": "dh-01",
+      "prompt": "Hand the search for every file that imports evalkit to a Haiku worker.",
+      "expected": "downshift-haiku",
+      "acceptable": [
+        "downshift-haiku"
+      ],
+      "trap": "router_scope",
+      "why": "A broad file search, first on Haiku's list, with the worker named."
+    },
+    {
+      "id": "ds-01",
+      "prompt": "Have a Sonnet worker harvest the kit prices from Prairie Moon's pollinator power pack pages into a table.",
+      "expected": "downshift-sonnet",
+      "acceptable": [
+        "downshift-sonnet"
+      ],
+      "trap": "router_scope",
+      "why": "Harvesting sources into a table is on Sonnet's list. Read-only on purpose: these skills fork a real worker when they dispatch."
+    },
+    {
+      "id": "ds-02",
+      "prompt": "Give this to a cheaper model: a first-pass summary of the 40-page energy audit PDF.",
+      "expected": "downshift-sonnet",
+      "acceptable": [
+        "downshift-sonnet"
+      ],
+      "trap": "router_scope",
+      "why": "The Haiku-vs-Sonnet boundary. No model named; first-pass summaries appear only on Sonnet's list. downshift-haiku is the failure."
+    },
+    {
+      "id": "pwf-01",
+      "prompt": "This migration is going to run long and I'll probably /clear halfway through. Keep the plan and findings on disk so we don't lose them.",
+      "expected": "planning-with-files",
+      "acceptable": [
+        "planning-with-files"
+      ],
+      "trap": "router_scope",
+      "why": "Surviving a /clear with plans on disk is the skill's whole pitch, without naming task_plan.md."
+    },
+    {
+      "id": "rt-01",
+      "prompt": "Rename the variable cnt to count in run.py.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "router_scope",
+      "why": "Renames are on Haiku's list and the router rule is loaded in every dispatch, but a one-line rename is under its size floor. Catches the router over-firing."
+    },
+    {
+      "id": "rt-02",
+      "prompt": "Should my scheduled tasks run on Haiku or Sonnet?",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "router_scope",
+      "why": "Names both worker models but asks for advice. claude-api firing scores as outside tested set, same as mb-03."
+    },
+    {
+      "id": "tm-01",
+      "prompt": "mine toil from my last month of Claude sessions",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "manual_only_guard",
+      "guards": [
+        "toil-mining"
+      ],
+      "why": "Verbatim trigger for toil-mining, which sets disable-model-invocation: true. A dispatch to it scores as a miss, meaning the flag stopped being honored."
     }
   ],
   "traps": [
@@ -300,7 +657,87 @@
         "sc-01",
         "sc-02",
         "sc-03",
-        "sc-04"
+        "sc-04",
+        "sc-05",
+        "sc-06"
+      ]
+    },
+    {
+      "label": "garden-bed-build: new perennial bed vs. vegetable beds, one plant, and hardscape",
+      "ids": [
+        "gbb-01",
+        "gbb-02",
+        "gbb-03",
+        "gbb-04",
+        "gbb-05",
+        "gbb-06",
+        "gbb-07",
+        "gbb-08"
+      ]
+    },
+    {
+      "label": "flow-spec-builder: design a flow vs. debug one vs. ticket it",
+      "ids": [
+        "flow-01",
+        "flow-02",
+        "flow-03",
+        "flow-04"
+      ]
+    },
+    {
+      "label": "phonelog-channel: wiring PhoneLog vs. generic Discord questions",
+      "ids": [
+        "pl-01",
+        "pl-02",
+        "pl-03"
+      ]
+    },
+    {
+      "label": "ship-sunday: the weekly increment vs. a one-off publish (no stated boundary)",
+      "ids": [
+        "ss-01",
+        "ss-02",
+        "ss-03"
+      ]
+    },
+    {
+      "label": "advise-project-approach: project direction vs. a narrow bug",
+      "ids": [
+        "apa-01",
+        "apa-02",
+        "apa-03"
+      ]
+    },
+    {
+      "label": "avoid-ai-writing: AI-tell audit vs. ordinary editing (no stated boundary)",
+      "ids": [
+        "aiw-01",
+        "aiw-02",
+        "aiw-03"
+      ]
+    },
+    {
+      "label": "notebooklm: generate in NotebookLM vs. consume a podcast",
+      "ids": [
+        "nlm-01",
+        "nlm-02"
+      ]
+    },
+    {
+      "label": "downshift-haiku / downshift-sonnet / planning-with-files vs. the router rule over-firing",
+      "ids": [
+        "dh-01",
+        "ds-01",
+        "ds-02",
+        "pwf-01",
+        "rt-01",
+        "rt-02"
+      ]
+    },
+    {
+      "label": "manual-only skills stay manual",
+      "ids": [
+        "tm-01"
       ]
     }
   ]

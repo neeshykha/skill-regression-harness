@@ -191,11 +191,20 @@ def check_dispatch_coverage(skills: list[Skill], cases: list[dict]) -> list[Find
     still reports 18/19, because the suite only knows about skills it has cases
     for. "18/19" then means "18 of the 19 things I happen to test", which reads
     identically to "everything is fine".
+
+    A skill with `disable-model-invocation: true` can't be dispatched, so no
+    positive case can ever pass for it. What can regress is the flag itself, and
+    a negative case that quotes its trigger and names it in `guards` tests that.
+    Guards count only for manual-only skills and only on cases expecting no
+    skill; otherwise `guards` becomes a way to mark anything covered without
+    testing it.
     """
     covered = {c["expected"] for c in cases} | {a for c in cases for a in c.get("acceptable", [])}
+    guarded = {g for c in cases if c.get("expected") == NO_SKILL for g in c.get("guards", [])}
     findings = []
     for s in skills:
-        if s.dir.name not in covered:
+        manual_only = str(s.frontmatter.get("disable-model-invocation", "")).strip("'\" ").lower() == "true"
+        if s.dir.name not in covered and not (manual_only and s.dir.name in guarded):
             findings.append(
                 Finding(
                     "dispatch_coverage",

@@ -17,8 +17,8 @@ no dispatch cases, quoted trigger phrases no case exercises, and whether any des
 has changed since the results were recorded.
 
 That last group matters more than it sounds. Layer 1 only knows about skills it has cases
-for, so adding a seventh skill tomorrow would leave the report still scoring **23 cases** —
-which means "the 23 things I happen to test" and reads exactly like "everything is fine".
+for, so adding a skill tomorrow would leave the report scoring **exactly the cases it scored
+yesterday** — which means "the things I happen to test" and reads exactly like "everything is fine".
 The coverage checks turn that silence into an error.
 
 **Layer 1 — dispatch.** Frozen prompts run through the real CLI. Does each one still
@@ -88,8 +88,8 @@ Exit codes are the report-by-exception contract: `0` nothing to act on, `1` find
 ### Run it when drift actually happens, not on a calendar
 
 Skill dispatch doesn't drift because time passed. It drifts on two events: a model or CLI
-upgrade, or an edited skill description. A monthly cron mostly spends 19 calls confirming
-nothing changed.
+upgrade, or an edited skill description. A monthly cron mostly spends a paid call per case
+confirming nothing changed.
 
 ```bash
 python3 run.py --if-changed
@@ -136,10 +136,16 @@ reports nothing, and a check that silently stops reporting is worse than no chec
 
 ## The case set is a specification, not ground truth
 
-`cases/routing_cases.json` holds 23 frozen prompts across seven confusable groups, each with
-an `expected` skill, an `acceptable` set, and a written reason it exists. Eight expect *no*
+`cases/routing_cases.json` holds 58 frozen prompts across sixteen confusable groups, each with
+an `expected` skill, an `acceptable` set, and a written reason it exists. Twenty expect *no*
 skill to fire — a suite of only positive cases can't detect over-triggering, which is the
 failure mode that actually shows up.
+
+One skill is covered without any case expecting it. `toil-mining` sets
+`disable-model-invocation: true`, so no prompt should ever reach it, and a positive case
+could never pass. `tm-01` quotes its trigger, expects none, and names the skill in
+`guards`. The coverage check accepts a guard only for a manual-only skill on a case
+expecting none, and a dispatch to it scores as a miss: the flag stopped being honored.
 
 These expectations are arguments, not facts. On the first live run a disagreement is as
 likely to be a wrong expectation as a wrong dispatch, and should be adjudicated by hand.
