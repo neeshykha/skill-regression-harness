@@ -332,5 +332,8 @@ and touch calendars, so executing them on a schedule to see whether they still w
 cause the damage it's meant to prevent.
 
 Output conformance is also out of scope for now. Only `car-check` runs hermetically enough
-to assert on its output; the rest need live Salesforce, Gmail, or calendar. Dispatch is the
-layer that generalizes across all of them.
+to assert on its output. `jira-ticket-builder` and `interview-loop` need live Salesforce,
+Gmail, or calendar. `model-baseline` launches clean-room model runs of its own, and
+`skill-check` runs this harness, which is how the recursion described above started.
+`improvement-notes` audits whatever session invoked it, so there's no fixed output to
+compare against. Dispatch is the layer that generalizes across all of them.
