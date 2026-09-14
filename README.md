@@ -37,8 +37,8 @@ The cheap version of Layer 1 hands a model the skill roster and asks which one i
 pick. That measures whether a model can match descriptions when explicitly told to, which
 is not the thing that breaks. What breaks is dispatch itself.
 
-So the harness runs the real dispatcher, in **plan mode** with a denylist of the effectful
-tools. A skill still dispatches and the decision is fully visible in the transcript, but
+So the harness runs the real dispatcher under a **denylist** of the effectful tools. A
+skill still dispatches and the decision is fully visible in the transcript, but
 nothing it then reaches for executes. `jira-ticket-builder` gets dispatch-tested without
 touching Salesforce; `interview-loop` without touching Gmail.
 
