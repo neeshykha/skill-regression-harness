@@ -318,6 +318,31 @@ the skill: templated paths are captured whole and reported at INFO, never as err
 their absence is the expected state for something the skill is about to write. Pinned as a
 regression test.
 
+### Three more, 2026-09-14: runtime paths
+
+By September the only errors left were three broken references, and they failed every lint
+run and printed after every SKILL.md edit. None of them pointed at a missing file the skill
+depends on:
+
+- `notebooklm` → `~/.notebooklm/context.json`: the CLI's legacy home-root fallback. The
+  profile migration already moved it into `profiles/default/`, and only `notebooklm use`
+  writes context in the first place.
+- `planning-with-files` → `~/.cache/pwf-sha`: a SHA cache the upstream v3 hooks write. The
+  pattern-only install has no hooks.
+- `planning-with-files` → `~/.claude/loop.md`: the destination of a `cp` install step.
+
+A regex can't tell these from a moved script: both are a concrete path under a directory
+that exists. So the fix is an explicit list, `cases/runtime_paths.json`, keyed by skill and
+exact path with a reason on each entry. Listed paths report at INFO as `runtime_reference`,
+the same path in a different skill is still an error, and an entry its skill no longer
+mentions is a WARN (`stale_runtime_path`) so the list can't outlive its reason.
+
+The `loop.md` one did expose a real problem, just not the one the lint named. Its `cp`
+source, `${CLAUDE_PLUGIN_ROOT}/templates/loop.md`, doesn't exist in a skill-only install,
+and the path regex only matches `~/` and `/Users/` forms, so it never saw that. That was
+fixed in the skill: its local install note now lists the `loop.md` template among the
+upstream-only sections.
+
 ## A reproducibility caveat worth knowing
 
 Each dispatch is a real `claude -p` sub-session, and it inherits the full user environment:

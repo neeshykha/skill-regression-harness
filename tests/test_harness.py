@@ -23,6 +23,7 @@ from harness.lint import (  # noqa: E402
     check_references,
     check_trigger_collisions,
     check_untested_triggers,
+    load_runtime_paths,
 )
 from harness.preflight import envelope_error  # noqa: E402
 from harness import routing as routing_mod  # noqa: E402
@@ -83,6 +84,45 @@ class TestReferences(unittest.TestCase):
         findings = check_references([s], Path.home())
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0].severity, "error")
+
+    def test_runtime_path_is_info_not_error(self):
+        """Regression: notebooklm and planning-with-files mention a CLI fallback
+        file, a hook cache, and a `cp` destination. None exist until something
+        else writes them, and all three failed every lint run as broken."""
+        s = make_skill("x", body="the hook caches hashes in ~/.cache/nope-9f3a")
+        allow = [{"skill": "x", "path": "~/.cache/nope-9f3a", "reason": "hook cache"}]
+        findings = check_references([s], Path.home(), allow)
+        self.assertEqual([(f.check, f.severity) for f in findings], [("runtime_reference", "info")])
+
+    def test_runtime_allowlist_is_scoped_to_its_skill(self):
+        s = make_skill("y", body="Read ~/.cache/nope-9f3a")
+        allow = [{"skill": "x", "path": "~/.cache/nope-9f3a", "reason": "hook cache"}]
+        findings = check_references([s], Path.home(), allow)
+        self.assertEqual([f.check for f in findings], ["broken_reference"])
+
+    def test_runtime_allowlist_does_not_cover_other_paths(self):
+        s = make_skill("x", body="Read ~/.cache/nope-9f3a and ~/.cache/other-9f3a")
+        allow = [{"skill": "x", "path": "~/.cache/nope-9f3a", "reason": "hook cache"}]
+        findings = check_references([s], Path.home(), allow)
+        broken = [f.detail for f in findings if f.check == "broken_reference"]
+        self.assertEqual(len(broken), 1)
+        self.assertIn("other-9f3a", broken[0])
+
+    def test_unreferenced_runtime_entry_warns(self):
+        s = make_skill("x", body="no paths here anymore")
+        allow = [{"skill": "x", "path": "~/.cache/nope-9f3a", "reason": "hook cache"}]
+        findings = check_references([s], Path.home(), allow)
+        self.assertEqual([(f.check, f.severity) for f in findings], [("stale_runtime_path", "warn")])
+
+    def test_missing_runtime_file_means_empty_allowlist(self):
+        self.assertEqual(load_runtime_paths(Path(tempfile.gettempdir()) / "no-such-runtime-9f3a.json"), [])
+
+    def test_shipped_runtime_paths_are_well_formed(self):
+        entries = load_runtime_paths(Path(__file__).resolve().parent.parent / "cases" / "runtime_paths.json")
+        self.assertTrue(entries)
+        for e in entries:
+            self.assertTrue(e.get("skill") and e.get("path") and e.get("reason"), e)
+            self.assertFalse(is_templated(e["path"]), "templated paths are already INFO; don't list them")
 
 
 class TestLintChecks(unittest.TestCase):

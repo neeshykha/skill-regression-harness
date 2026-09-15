@@ -23,7 +23,7 @@ from harness import report as report_mod
 from harness import routing
 from harness._evalkit import source as evalkit_source
 from harness.discover import discover
-from harness.lint import run_lint
+from harness.lint import load_runtime_paths, run_lint
 
 
 def load_cases(path: Path) -> tuple[list[dict], list[dict]]:
@@ -55,6 +55,12 @@ def main() -> int:
         "dispatch run has been reviewed -- never to silence a drift warning.",
     )
     p.add_argument("--baseline", type=Path, default=Path(__file__).parent / "cases" / "skill_baseline.json")
+    p.add_argument(
+        "--runtime-paths",
+        type=Path,
+        default=Path(__file__).parent / "cases" / "runtime_paths.json",
+        help="paths a skill mentions that something else creates at runtime; reported at INFO, not as broken",
+    )
     args = p.parse_args()
 
     roots = args.skills_dir or [Path.home() / ".claude" / "skills"]
@@ -68,7 +74,14 @@ def main() -> int:
     base = baseline_mod.Baseline.load(args.baseline)
     drift = base.drift(skills, version, args.model)
 
-    findings = run_lint(skills, Path.home(), cases=cases, drift_reasons=drift, traps=traps)
+    findings = run_lint(
+        skills,
+        Path.home(),
+        cases=cases,
+        drift_reasons=drift,
+        traps=traps,
+        runtime_paths=load_runtime_paths(args.runtime_paths),
+    )
     lint_errors = [f for f in findings if f.severity == "error"]
 
     print(f"{len(skills)} skills: {', '.join(s.dir.name for s in skills)}", file=sys.stderr)
