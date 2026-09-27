@@ -599,6 +599,56 @@
         "toil-mining"
       ],
       "why": "Verbatim trigger for toil-mining, which sets disable-model-invocation: true. A dispatch to it scores as a miss, meaning the flag stopped being honored."
+    },
+    {
+      "id": "wi-01",
+      "prompt": "Let's do the work interview.",
+      "expected": "work-interview",
+      "acceptable": [
+        "work-interview"
+      ],
+      "trap": "work_interview_scope",
+      "why": "Verbatim trigger."
+    },
+    {
+      "id": "wi-02",
+      "prompt": "Time for my weekly interview.",
+      "expected": "work-interview",
+      "acceptable": [
+        "work-interview"
+      ],
+      "trap": "work_interview_scope",
+      "why": "Verbatim trigger that reads like a job interview. The description claims 'weekly interview' outright, so interview-loop taking it is the failure this case exists to catch."
+    },
+    {
+      "id": "wi-03",
+      "prompt": "Got the work harvest ready ping. Let's go through it.",
+      "expected": "work-interview",
+      "acceptable": [
+        "work-interview"
+      ],
+      "trap": "work_interview_scope",
+      "why": "The Discord-nag reply path the description claims, with the word 'interview' nowhere in the prompt."
+    },
+    {
+      "id": "wi-04",
+      "prompt": "Help me prep for my interview with Anthropic on Thursday.",
+      "expected": "interview-loop",
+      "acceptable": [
+        "interview-loop"
+      ],
+      "trap": "work_interview_scope",
+      "why": "work-interview disclaims job-interview prep and names interview-loop as the owner. Same boundary as int-02, tested from the other side: here the failure is work-interview firing."
+    },
+    {
+      "id": "wi-05",
+      "prompt": "Add the Maven feedback loop to my master resume.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "work_interview_scope",
+      "why": "A direct resume edit, not the weekly interview, so naming master_resume is not enough for work-interview to fire. A bundled career skill this suite doesn't own may take it, which scores as outside tested set, not a miss."
     }
   ],
   "traps": [
@@ -738,6 +788,16 @@
       "label": "manual-only skills stay manual",
       "ids": [
         "tm-01"
+      ]
+    },
+    {
+      "label": "work-interview: weekly resume interview vs. job interview (disclaimed in its own description)",
+      "ids": [
+        "wi-01",
+        "wi-02",
+        "wi-03",
+        "wi-04",
+        "wi-05"
       ]
     }
   ]
