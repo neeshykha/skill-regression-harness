@@ -268,6 +268,96 @@
       "why": "Says 'skill check' verbatim but asks for an audit of the session, which skill-check explicitly hands to improvement-notes. skill-check firing is the failure."
     },
     {
+      "id": "scan-01",
+      "prompt": "Scan this skill before I install it: ~/Downloads/staged/story-skills",
+      "expected": "skill-scanner",
+      "acceptable": [
+        "skill-scanner"
+      ],
+      "trap": "skillscanner_scope",
+      "why": "Verbatim 'scan this skill' with a staged third-party folder. The scan-before-copy case the skill exists for."
+    },
+    {
+      "id": "scan-02",
+      "prompt": "Is anything in my installed skills trying to do something sketchy, like hidden instructions or reading my keys?",
+      "expected": "skill-scanner",
+      "acceptable": [
+        "skill-scanner"
+      ],
+      "trap": "skillscanner_scope",
+      "why": "Paraphrase with no claimed trigger phrase. A security question about skills, not a health question."
+    },
+    {
+      "id": "scan-03",
+      "prompt": "I just edited the car-check SKILL.md. Did I break its frontmatter or its routing?",
+      "expected": "skill-check",
+      "acceptable": [
+        "skill-check"
+      ],
+      "trap": "skillscanner_scope",
+      "why": "Near-miss: a skill and its SKILL.md, but the question is health and routing, which skill-scanner explicitly hands to skill-check. skill-scanner firing is the failure."
+    },
+    {
+      "id": "prem-01",
+      "prompt": "I have an idea for a story: a lighthouse keeper who has never left the rock. Help me figure out if there's anything there.",
+      "expected": "premise-workshop",
+      "acceptable": [
+        "premise-workshop"
+      ],
+      "trap": "fiction_scope",
+      "why": "Verbatim 'I have an idea for a story' with a character spark. The case the skill exists for."
+    },
+    {
+      "id": "prem-02",
+      "prompt": "I keep picturing a city that packs up and moves every winter. Is that a short story or a novel?",
+      "expected": "premise-workshop",
+      "acceptable": [
+        "premise-workshop"
+      ],
+      "trap": "fiction_scope",
+      "why": "Paraphrase: a setting spark plus the form question, with no claimed opener phrase."
+    },
+    {
+      "id": "prem-03",
+      "prompt": "What if I refinanced before the dormer project instead of after? Walk me through the tradeoffs.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "fiction_scope",
+      "why": "Near-miss: a bare 'what if' about money and the house. Upstream listed 'what if' as a trigger; the local description excludes non-fiction. premise-workshop firing is the failure."
+    },
+    {
+      "id": "scene-01",
+      "prompt": "Here's a scene from my short story where two brothers argue over selling the family boat. The dialogue feels flat and they sound the same. What's wrong with it?",
+      "expected": "scene-craft",
+      "acceptable": [
+        "scene-craft"
+      ],
+      "trap": "fiction_scope",
+      "why": "A fiction scene with a named scene-level problem (flat dialogue, blurred voices)."
+    },
+    {
+      "id": "scene-02",
+      "prompt": "The first chapter of my novel opens with three paragraphs about the valley's history before anyone shows up. How do I get that information in without stalling?",
+      "expected": "scene-craft",
+      "acceptable": [
+        "scene-craft"
+      ],
+      "trap": "fiction_scope",
+      "why": "Paraphrase of an info dump and opening problem without the words 'info dump' or 'exposition'."
+    },
+    {
+      "id": "scene-03",
+      "prompt": "Tighten this paragraph from my essay on case routing. It reads like AI wrote it.",
+      "expected": "avoid-ai-writing",
+      "acceptable": [
+        "avoid-ai-writing"
+      ],
+      "trap": "fiction_scope",
+      "why": "Near-miss: prose that needs work, but non-fiction and a de-AI request. scene-craft explicitly hands this to avoid-ai-writing; scene-craft firing is the failure."
+    },
+    {
       "id": "gbb-01",
       "prompt": "I want to turn the sunny corner by the mailbox into a native pollinator bed, roughly 12 by 8. Plan it out.",
       "expected": "garden-bed-build",
@@ -599,6 +689,146 @@
         "toil-mining"
       ],
       "why": "Verbatim trigger for toil-mining, which sets disable-model-invocation: true. A dispatch to it scores as a miss, meaning the flag stopped being honored."
+    },
+    {
+      "id": "inbox-01",
+      "prompt": "check my email",
+      "expected": "inbox",
+      "acceptable": [
+        "inbox"
+      ],
+      "trap": "inbox_scope",
+      "why": "Verbatim trigger phrase from the description, with nothing else to go on."
+    },
+    {
+      "id": "inbox-02",
+      "prompt": "What should I know in my email from this week?",
+      "expected": "inbox",
+      "acceptable": [
+        "inbox"
+      ],
+      "trap": "inbox_scope",
+      "why": "Broad-mode phrasing added Oct 20 2026, with a window. Asks what to know, not what to answer."
+    },
+    {
+      "id": "inbox-03",
+      "prompt": "Anything in my mail I need to answer?",
+      "expected": "inbox",
+      "acceptable": [
+        "inbox"
+      ],
+      "trap": "inbox_scope",
+      "why": "Paraphrase of 'anything I need to answer' with 'mail' in place of 'email'."
+    },
+    {
+      "id": "inbox-04",
+      "prompt": "Unsubscribe me from these retail newsletters and clean up my Promotions tab.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "inbox_scope",
+      "why": "Near-miss: Gmail, but bulk cleanup, which the description explicitly excludes. inbox firing is the failure."
+    },
+    {
+      "id": "flash-01",
+      "prompt": "Do a flash run on what's waiting on me across everything.",
+      "expected": "flash",
+      "acceptable": [
+        "flash"
+      ],
+      "trap": "flash_scope",
+      "why": "Verbatim trigger ('flash run', 'what's waiting on me'), cross-channel scope."
+    },
+    {
+      "id": "flash-02",
+      "prompt": "Feels like stuff is falling through the cracks. Can you sweep my texts, email, and Discord for anything I owe somebody?",
+      "expected": "flash",
+      "acceptable": [
+        "flash"
+      ],
+      "trap": "flash_scope",
+      "why": "Paraphrase of the Oct 20 2026 ask that built the skill. Names email, but alongside texts and Discord, so inbox firing is the failure."
+    },
+    {
+      "id": "flash-03",
+      "prompt": "Let's go through my Action Needed pages.",
+      "expected": "flash",
+      "acceptable": [
+        "flash"
+      ],
+      "trap": "flash_scope",
+      "why": "Pages-only mode trigger, added at his ask on Oct 20 2026."
+    },
+    {
+      "id": "flash-04",
+      "prompt": "read my Worker Split Questions",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "flash_scope",
+      "why": "Near-miss: one named Shelf page's own flow, which the description excludes. flash firing is the failure."
+    },
+    {
+      "id": "arch-01",
+      "prompt": "Run the archive pick",
+      "expected": "archive-pick",
+      "acceptable": [
+        "archive-pick"
+      ],
+      "trap": "archive_pick",
+      "why": "The phrase he asked for on 2026-11-03."
+    },
+    {
+      "id": "arch-02",
+      "prompt": "archive all but 3 from Saturday's shelf list, and keep 5",
+      "expected": "archive-pick",
+      "acceptable": [
+        "archive-pick"
+      ],
+      "trap": "archive_pick",
+      "why": "A Discord-style reply to the Saturday post, with no skill name in it."
+    },
+    {
+      "id": "arch-03",
+      "prompt": "apply the shelf audit",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "archive_pick",
+      "why": "Near miss: the shelf audit has its own plan and no skill; the description disclaims it."
+    },
+    {
+      "id": "ssp-01",
+      "prompt": "read my Skill Scan",
+      "expected": "skill-scan-picks",
+      "acceptable": [
+        "skill-scan-picks"
+      ],
+      "trap": "skill_scan_picks",
+      "why": "The Shelf's Action Needed prompt for the click-through page, verbatim."
+    },
+    {
+      "id": "ssp-02",
+      "prompt": "I tapped through the skill page on my phone last night. Go ahead and do the installs I picked and let's talk about the one I flagged.",
+      "expected": "skill-scan-picks",
+      "acceptable": [
+        "skill-scan-picks"
+      ],
+      "trap": "skill_scan_picks",
+      "why": "Paraphrase with no trigger phrase: taps from the page, installs, and a talk pick."
+    },
+    {
+      "id": "ssp-03",
+      "prompt": "Find me some new Claude skills on GitHub for gardening or cooking.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "skill_scan_picks",
+      "why": "Near-miss: skill discovery belongs to the weekly scan routine, which isn't a skill. skill-scan-picks or skill-check firing is the failure."
     }
   ],
   "traps": [
@@ -660,6 +890,25 @@
         "sc-04",
         "sc-05",
         "sc-06"
+      ]
+    },
+    {
+      "label": "skill-scanner: security scan vs. skill health check",
+      "ids": [
+        "scan-01",
+        "scan-02",
+        "scan-03"
+      ]
+    },
+    {
+      "label": "premise-workshop / scene-craft: fiction vs. non-fiction what-ifs and prose edits",
+      "ids": [
+        "prem-01",
+        "prem-02",
+        "prem-03",
+        "scene-01",
+        "scene-02",
+        "scene-03"
       ]
     },
     {
@@ -738,6 +987,40 @@
       "label": "manual-only skills stay manual",
       "ids": [
         "tm-01"
+      ]
+    },
+    {
+      "label": "inbox: triage and broad scan vs. bulk cleanup",
+      "ids": [
+        "inbox-01",
+        "inbox-02",
+        "inbox-03",
+        "inbox-04"
+      ]
+    },
+    {
+      "label": "flash: cross-channel sweep vs. email-only and single-page reads",
+      "ids": [
+        "flash-01",
+        "flash-02",
+        "flash-03",
+        "flash-04"
+      ]
+    },
+    {
+      "label": "archive-pick vs. the shelf audit",
+      "ids": [
+        "arch-01",
+        "arch-02",
+        "arch-03"
+      ]
+    },
+    {
+      "label": "skill-scan-picks: acting on page taps vs. finding new skills",
+      "ids": [
+        "ssp-01",
+        "ssp-02",
+        "ssp-03"
       ]
     }
   ]
