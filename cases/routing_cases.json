@@ -61,20 +61,22 @@
       "prompt": "retro this session",
       "expected": "improvement-notes",
       "acceptable": [
-        "improvement-notes"
+        "improvement-notes",
+        "anthropic-skills:improvement-notes"
       ],
       "trap": "improvement_boundary",
-      "why": "Verbatim trigger phrase from the description."
+      "why": "Verbatim trigger phrase from the description. Nov 6, 2026 (his card): anthropic-skills:improvement-notes added as acceptable; sessions list only the plugin copy, so it is the same skill under the name the router sees."
     },
     {
       "id": "imp-02",
       "prompt": "How could we have done that faster and with less back and forth?",
       "expected": "improvement-notes",
       "acceptable": [
-        "improvement-notes"
+        "improvement-notes",
+        "anthropic-skills:improvement-notes"
       ],
       "trap": "improvement_boundary",
-      "why": "Paraphrase of a claimed trigger, never using the word 'audit'."
+      "why": "Paraphrase of a claimed trigger, never using the word 'audit'. Nov 6, 2026 (his card): anthropic-skills:improvement-notes added as acceptable; sessions list only the plugin copy, so it is the same skill under the name the router sees."
     },
     {
       "id": "imp-03",
@@ -262,10 +264,11 @@
       "prompt": "That skill check took forever. How could we have run it faster?",
       "expected": "improvement-notes",
       "acceptable": [
-        "improvement-notes"
+        "improvement-notes",
+        "anthropic-skills:improvement-notes"
       ],
       "trap": "skillcheck_scope",
-      "why": "Says 'skill check' verbatim but asks for an audit of the session, which skill-check explicitly hands to improvement-notes. skill-check firing is the failure."
+      "why": "Says 'skill check' verbatim but asks for an audit of the session, which skill-check explicitly hands to improvement-notes. skill-check firing is the failure. Nov 6, 2026 (his card): anthropic-skills:improvement-notes added as acceptable; sessions list only the plugin copy, so it is the same skill under the name the router sees."
     },
     {
       "id": "scan-01",
@@ -412,10 +415,11 @@
       "prompt": "The stone steps down to the meadow shift after every rain. How do I stabilize them?",
       "expected": "none",
       "acceptable": [
-        "none"
+        "none",
+        "anthropic-skills:diy-home-context"
       ],
       "trap": "garden_bed_scope",
-      "why": "Hardscape and drainage, both handed to diy-home-context by name in the description. 'Meadow' is the bait."
+      "why": "Hardscape and drainage, both handed to diy-home-context by name in the description. 'Meadow' is the bait. Nov 6, 2026 (his card): diy-home-context added as acceptable after it fired 3 of 3 runs; it is the skill the description hands this to, so firing it is correct. garden-bed-build firing is still the failure."
     },
     {
       "id": "gbb-07",
@@ -829,6 +833,36 @@
       ],
       "trap": "skill_scan_picks",
       "why": "Near-miss: skill discovery belongs to the weekly scan routine, which isn't a skill. skill-scan-picks or skill-check firing is the failure."
+    },
+    {
+      "id": "fe-01",
+      "prompt": "Fresh eyes on this before I build it: a nightly script that copies my garden tracker CSVs into a Google Sheet and texts me a summary.",
+      "expected": "fresh-eyes",
+      "acceptable": [
+        "fresh-eyes"
+      ],
+      "trap": "fresh_eyes_scope",
+      "why": "Clear positive for the plan pass, using the verbatim trigger 'fresh eyes on this' and a build about to start."
+    },
+    {
+      "id": "fe-02",
+      "prompt": "Before I send this to Vitamix support, read it the way their rep will and tell me what they'll push back on:\n\nHi, I bought a Vitamix 5200 from Amazon on October 14, 2020. The 64 oz container started leaking from the bottom and I threw it away. Can you send a replacement under the 7-year warranty? Thanks, Aneesh",
+      "expected": "fresh-eyes",
+      "acceptable": [
+        "fresh-eyes"
+      ],
+      "trap": "fresh_eyes_scope",
+      "why": "Paraphrase of the recipient pass ('read it as them', 'how will they push back') without the words red-team or recipient. negotiation-playbook firing is the likely miss: it sets the method for a claim, it doesn't read the draft from the other side. Nov 6, 2026 calibration (first run): the original prompt said 'Here's my email' with no email in it and got none 6 of 6, since a session reasonably asks for the text first. The prompt now carries the email."
+    },
+    {
+      "id": "fe-03",
+      "prompt": "Fix the typos in this text to my friend before I send it: 'hey r u still on for saturday, i can bring the grill'",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "fresh_eyes_scope",
+      "why": "Near-miss: an outgoing message, but a casual one to a friend, which the recipient pass skips by name. fresh-eyes or avoid-ai-writing firing is the failure."
     }
   ],
   "traps": [
@@ -1021,6 +1055,14 @@
         "ssp-01",
         "ssp-02",
         "ssp-03"
+      ]
+    },
+    {
+      "label": "fresh-eyes: plan and recipient passes vs. a casual message",
+      "ids": [
+        "fe-01",
+        "fe-02",
+        "fe-03"
       ]
     }
   ]
