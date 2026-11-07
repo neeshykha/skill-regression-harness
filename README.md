@@ -136,8 +136,8 @@ reports nothing, and a check that silently stops reporting is worse than no chec
 
 ## The case set is a specification, not ground truth
 
-`cases/routing_cases.json` holds 84 frozen prompts across 23 confusable groups, each with
-an `expected` skill, an `acceptable` set, and a written reason it exists. 30 expect *no*
+`cases/routing_cases.json` holds 120 frozen prompts across 35 confusable groups, each with
+an `expected` skill, an `acceptable` set, and a written reason it exists. 38 expect *no*
 skill to fire — a suite of only positive cases can't detect over-triggering, which is the
 failure mode that actually shows up.
 

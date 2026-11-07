@@ -875,6 +875,377 @@
       ],
       "trap": "fresh_eyes_scope",
       "why": "Near-miss: an outgoing message, but a casual one to a friend, which the recipient pass skips by name. fresh-eyes or avoid-ai-writing firing is the failure."
+    },
+    {
+      "id": "amx-01",
+      "prompt": "Any new Amex offers this month? Run the amex pass.",
+      "expected": "amex-pass",
+      "acceptable": [
+        "amex-pass"
+      ],
+      "trap": "amex_scope",
+      "why": "Clear positive, verbatim triggers 'any new amex offers' and 'amex pass'."
+    },
+    {
+      "id": "amx-02",
+      "prompt": "Which of my Delta card statement credits have I used up so far this year?",
+      "expected": "amex-pass",
+      "acceptable": [
+        "amex-pass"
+      ],
+      "trap": "amex_scope",
+      "why": "Paraphrase of 'which card credits have I used', which the description claims."
+    },
+    {
+      "id": "amx-03",
+      "prompt": "Should I move from the Delta Platinum card to the Reserve to help reach Platinum Medallion next year?",
+      "expected": "none",
+      "acceptable": [
+        "none",
+        "anthropic-skills:delta-mqd-optimizer"
+      ],
+      "trap": "amex_scope",
+      "why": "Near-miss: card talk, but it's status strategy, which delta-mqd-optimizer owns. amex-pass firing is the failure."
+    },
+    {
+      "id": "am-01",
+      "prompt": "Audit my CLAUDE.md against my sessions from the last month.",
+      "expected": "automate-me",
+      "acceptable": [
+        "automate-me"
+      ],
+      "trap": "automate_scope",
+      "why": "Clear positive, verbatim trigger."
+    },
+    {
+      "id": "am-02",
+      "prompt": "Which of the rules in my CLAUDE.md do I actually follow, and what do I do all the time that isn't written down anywhere?",
+      "expected": "automate-me",
+      "acceptable": [
+        "automate-me"
+      ],
+      "trap": "automate_scope",
+      "why": "Paraphrase of 'which of my rules actually have evidence' and 'what habits of mine aren't written down'."
+    },
+    {
+      "id": "am-03",
+      "prompt": "Look through my sessions for commands I keep repeating and turn them into new skills.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "automate_scope",
+      "why": "Near-miss: automate-me disclaims turning repeated commands into skills (lore, not installed). automate-me firing is the failure."
+    },
+    {
+      "id": "bd-01",
+      "prompt": "Use the old batch flow today and pull the decision page.",
+      "expected": "batch-decisions",
+      "acceptable": [
+        "batch-decisions"
+      ],
+      "trap": "batch_scope",
+      "why": "Clear positive, verbatim triggers 'old batch flow' and 'pull the decision page'."
+    },
+    {
+      "id": "bd-02",
+      "prompt": "ESCALATED BATCH DECISIONS\n00268386: nudge engineering in the ticket\n00271102: close, resolved by release 4.12",
+      "expected": "batch-decisions",
+      "acceptable": [
+        "batch-decisions"
+      ],
+      "trap": "batch_scope",
+      "why": "Paraphrase: a pasted block starting ESCALATED BATCH DECISIONS, which the description claims."
+    },
+    {
+      "id": "bd-03",
+      "prompt": "Run the batch.",
+      "expected": "support-batch",
+      "acceptable": [
+        "support-batch"
+      ],
+      "trap": "batch_scope",
+      "why": "Near-miss and trigger collision: both skills quote 'run the batch', but batch-decisions hands it to support-batch (his picks, 10/28). batch-decisions firing is the failure."
+    },
+    {
+      "id": "sb-01",
+      "prompt": "Run the support batch.",
+      "expected": "support-batch",
+      "acceptable": [
+        "support-batch"
+      ],
+      "trap": "support_batch_scope",
+      "why": "Clear positive, verbatim trigger."
+    },
+    {
+      "id": "sb-02",
+      "prompt": "It's 2 PM. Did anything move on the escalated cases since this morning's run?",
+      "expected": "support-batch",
+      "acceptable": [
+        "support-batch"
+      ],
+      "trap": "support_batch_scope",
+      "why": "Paraphrase of the afternoon check without saying 'afternoon check'."
+    },
+    {
+      "id": "sb-03",
+      "prompt": "What's the status of case 00271102?",
+      "expected": "none",
+      "acceptable": [
+        "none",
+        "anthropic-skills:salesforce-iapartments"
+      ],
+      "trap": "support_batch_scope",
+      "why": "Near-miss: one case, which support-batch disclaims. salesforce-iapartments covers Salesforce questions. support-batch firing is the failure."
+    },
+    {
+      "id": "ld-01",
+      "prompt": "Pull the loop page for this week.",
+      "expected": "loop-decisions",
+      "acceptable": [
+        "loop-decisions"
+      ],
+      "trap": "loop_scope",
+      "why": "Clear positive, verbatim trigger 'pull the loop page'."
+    },
+    {
+      "id": "ld-02",
+      "prompt": "LOOP PASS DECISIONS\nL-14: close the loop, the 7-day watch ended clean\nL-15: extend the watch 7 more days",
+      "expected": "loop-decisions",
+      "acceptable": [
+        "loop-decisions"
+      ],
+      "trap": "loop_scope",
+      "why": "Paraphrase: a pasted block starting LOOP PASS DECISIONS, which the description claims."
+    },
+    {
+      "id": "ld-03",
+      "prompt": "Pull the decision page.",
+      "expected": "batch-decisions",
+      "acceptable": [
+        "batch-decisions"
+      ],
+      "trap": "loop_scope",
+      "why": "Near-miss: the daily Escalated page belongs to batch-decisions, and loop-decisions disclaims it. loop-decisions firing is the failure."
+    },
+    {
+      "id": "learn-01",
+      "prompt": "Next lesson in econometrics.",
+      "expected": "learn",
+      "acceptable": [
+        "learn"
+      ],
+      "trap": "learn_scope",
+      "why": "Clear positive, verbatim trigger 'next lesson'."
+    },
+    {
+      "id": "learn-02",
+      "prompt": "I finished the econometrics lesson on the Shelf. Read my answers and let's keep going.",
+      "expected": "learn",
+      "acceptable": [
+        "learn"
+      ],
+      "trap": "learn_scope",
+      "why": "Paraphrase of 'I did the lesson' plus reading saved answers."
+    },
+    {
+      "id": "learn-03",
+      "prompt": "Make me a one-page explainer on what a p-value is.",
+      "expected": "none",
+      "acceptable": [
+        "none",
+        "page-design"
+      ],
+      "trap": "learn_scope",
+      "why": "Near-miss: a one-off explainer page is a plain build, which learn disclaims; page-design may fire for the page. learn firing is the failure."
+    },
+    {
+      "id": "pd-01",
+      "prompt": "Build me an HTML page with next week's tennis and lifting schedule.",
+      "expected": "page-design",
+      "acceptable": [
+        "page-design",
+        "artifact-design"
+      ],
+      "trap": "page_design_scope",
+      "why": "Clear positive: a new HTML page. artifact-design is acceptable because it loads for any page too."
+    },
+    {
+      "id": "pd-02",
+      "prompt": "This findings page is a wall of text and the ask is buried at the bottom. Clean it up.",
+      "expected": "page-design",
+      "acceptable": [
+        "page-design",
+        "artifact-design"
+      ],
+      "trap": "page_design_scope",
+      "why": "Paraphrase of fixing an existing page without saying HTML or design."
+    },
+    {
+      "id": "pd-03",
+      "prompt": "Write the Slack message telling the T1 team the portal outage is over.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "page_design_scope",
+      "why": "Near-miss: Slack text, which page-design disclaims. page-design firing is the failure."
+    },
+    {
+      "id": "sep-01",
+      "prompt": "Unslop this short story opening so it doesn't read like AI wrote it:\n\nThe rain fell like a curtain of forgotten memories as Elena stood at the window, her heart a tapestry of longing. She knew, deep down, that this moment would change everything. The old house seemed to whisper secrets only she could hear.",
+      "expected": "sepia",
+      "acceptable": [
+        "sepia"
+      ],
+      "trap": "sepia_scope",
+      "why": "Clear positive, verbatim 'unslop' on fiction, with the text included."
+    },
+    {
+      "id": "sep-02",
+      "prompt": "Just diagnose this flash fiction for machine-written tells. Don't edit it yet.\n\nThe rain fell like a curtain of forgotten memories as Elena stood at the window, her heart a tapestry of longing. She knew, deep down, that this moment would change everything. The old house seemed to whisper secrets only she could hear.",
+      "expected": "sepia",
+      "acceptable": [
+        "sepia"
+      ],
+      "trap": "sepia_scope",
+      "why": "Paraphrase of review mode without the words humanize, de-AI, or unslop."
+    },
+    {
+      "id": "sep-03",
+      "prompt": "De-AI this cover letter paragraph: \"I am passionate about leveraging cutting-edge solutions to drive synergy across cross-functional teams in today's fast-paced landscape.\"",
+      "expected": "avoid-ai-writing",
+      "acceptable": [
+        "avoid-ai-writing",
+        "none"
+      ],
+      "trap": "sepia_scope",
+      "why": "Near-miss: de-AI request on professional prose, which sepia hands to avoid-ai-writing. none is acceptable because avoid-ai-writing's inline misses are tracked separately (aiw-02). sepia firing is the failure."
+    },
+    {
+      "id": "sv-01",
+      "prompt": "Verify this claim before I cite it to Electrolux: \"Manufacturers must stock repair parts for 10 years after a model is discontinued.\"",
+      "expected": "source-verification",
+      "acceptable": [
+        "source-verification"
+      ],
+      "trap": "verify_scope",
+      "why": "Clear positive: verbatim 'verify this claim' on something he's about to send."
+    },
+    {
+      "id": "sv-02",
+      "prompt": "A blog says 40% of Atlanta homes have leaky ductwork. Where does that number come from, and can I trust it?",
+      "expected": "source-verification",
+      "acceptable": [
+        "source-verification"
+      ],
+      "trap": "verify_scope",
+      "why": "Paraphrase of 'where did this number come from' and 'can I trust this source'."
+    },
+    {
+      "id": "sv-03",
+      "prompt": "Is the Ryobi 40V string trimmer in stock at the Ponce Home Depot?",
+      "expected": "none",
+      "acceptable": [
+        "none",
+        "anthropic-skills:chrome-browser",
+        "anthropic-skills:built-in-browser"
+      ],
+      "trap": "verify_scope",
+      "why": "Near-miss: a stock check, which the description hands to the Verify Before Asserting rule. source-verification firing is the failure. Nov 6, 2026 calibration (his card): chrome-browser loaded 2 of 3 runs, since a stock check needs a browser; both browser skills are acceptable. source-verification never fired."
+    },
+    {
+      "id": "uf-01",
+      "prompt": "Upshift this to Fable and hunt for bugs: def is_weekday(d): return d.weekday() < 6",
+      "expected": "upshift-fable",
+      "acceptable": [
+        "upshift-fable"
+      ],
+      "trap": "upshift_scope",
+      "why": "Clear positive: names the upshift and a bug hunt, with a tiny task to keep a fired worker cheap."
+    },
+    {
+      "id": "uf-02",
+      "prompt": "Opus has missed this bug twice now. Hand it to the stronger model: def last_day(month): return [31,28,31,30,31,30,31,31,30,31,30,31][month]",
+      "expected": "upshift-fable",
+      "acceptable": [
+        "upshift-fable"
+      ],
+      "trap": "upshift_scope",
+      "why": "Paraphrase of the escalation rule (Opus failed twice) without naming Fable."
+    },
+    {
+      "id": "uf-03",
+      "prompt": "Rename the variable tmp to total in this snippet: tmp = a + b; print(tmp)",
+      "expected": "none",
+      "acceptable": [
+        "none",
+        "downshift-haiku"
+      ],
+      "trap": "upshift_scope",
+      "why": "Near-miss: a routine rename. downshift-haiku claims renames, and none is fine at this size. upshift-fable firing is the failure."
+    },
+    {
+      "id": "wtc-01",
+      "prompt": "What will a KLM Z-class ticket earn if I credit it to SkyMiles?",
+      "expected": "wheretocredit",
+      "acceptable": [
+        "wheretocredit"
+      ],
+      "trap": "wheretocredit_scope",
+      "why": "Clear positive: 'what will this earn' on a partner fare class."
+    },
+    {
+      "id": "wtc-02",
+      "prompt": "I'm looking at Air France premium economy in fare class S. Is that worth it for my Medallion status?",
+      "expected": "wheretocredit",
+      "acceptable": [
+        "wheretocredit"
+      ],
+      "trap": "wheretocredit_scope",
+      "why": "Paraphrase of 'is this partner fare worth it for status'."
+    },
+    {
+      "id": "wtc-03",
+      "prompt": "How many MQDs do I still need for Platinum Medallion this year, and what's the cheapest way to get there?",
+      "expected": "none",
+      "acceptable": [
+        "none",
+        "anthropic-skills:delta-mqd-optimizer"
+      ],
+      "trap": "wheretocredit_scope",
+      "why": "Near-miss: status strategy, which wheretocredit hands to delta-mqd-optimizer. wheretocredit firing is the failure."
+    },
+    {
+      "id": "wi-01",
+      "prompt": "Let's do the work interview.",
+      "expected": "work-interview",
+      "acceptable": [
+        "work-interview"
+      ],
+      "trap": "work_interview_scope",
+      "why": "Clear positive, verbatim trigger."
+    },
+    {
+      "id": "wi-02",
+      "prompt": "The Friday work harvest is ready. Walk me through what it flagged for my resume.",
+      "expected": "work-interview",
+      "acceptable": [
+        "work-interview"
+      ],
+      "trap": "work_interview_scope",
+      "why": "Paraphrase of replying to the 'Work harvest ready' nag."
+    },
+    {
+      "id": "wi-03",
+      "prompt": "Prep me for my Teal Communications interview on Tuesday.",
+      "expected": "interview-loop",
+      "acceptable": [
+        "interview-loop",
+        "anthropic-skills:career-narrative"
+      ],
+      "trap": "work_interview_scope",
+      "why": "Near-miss: job-interview prep, which work-interview hands to interview-loop. work-interview firing is the failure."
     }
   ],
   "traps": [
@@ -1075,6 +1446,102 @@
         "fe-01",
         "fe-02",
         "fe-03"
+      ]
+    },
+    {
+      "label": "amex-pass: monthly offers pass vs. Medallion status strategy",
+      "ids": [
+        "amx-01",
+        "amx-02",
+        "amx-03"
+      ]
+    },
+    {
+      "label": "automate-me: sessions vs. CLAUDE.md audit vs. turning commands into skills",
+      "ids": [
+        "am-01",
+        "am-02",
+        "am-03"
+      ]
+    },
+    {
+      "label": "batch-decisions: old page flow vs. the support batch",
+      "ids": [
+        "bd-01",
+        "bd-02",
+        "bd-03"
+      ]
+    },
+    {
+      "label": "support-batch: the daily batch vs. one case",
+      "ids": [
+        "sb-01",
+        "sb-02",
+        "sb-03"
+      ]
+    },
+    {
+      "label": "loop-decisions: weekly loop page vs. the daily escalated page",
+      "ids": [
+        "ld-01",
+        "ld-02",
+        "ld-03"
+      ]
+    },
+    {
+      "label": "learn: the lesson loop vs. a one-off explainer",
+      "ids": [
+        "learn-01",
+        "learn-02",
+        "learn-03"
+      ]
+    },
+    {
+      "label": "page-design: building or fixing an HTML page vs. message text",
+      "ids": [
+        "pd-01",
+        "pd-02",
+        "pd-03"
+      ]
+    },
+    {
+      "label": "sepia: AI-sounding fiction vs. professional prose",
+      "ids": [
+        "sep-01",
+        "sep-02",
+        "sep-03"
+      ]
+    },
+    {
+      "label": "source-verification: a claim worth a record vs. a quick lookup",
+      "ids": [
+        "sv-01",
+        "sv-02",
+        "sv-03"
+      ]
+    },
+    {
+      "label": "upshift-fable: hard-three work vs. routine edits",
+      "ids": [
+        "uf-01",
+        "uf-02",
+        "uf-03"
+      ]
+    },
+    {
+      "label": "wheretocredit: partner fare earning vs. status strategy",
+      "ids": [
+        "wtc-01",
+        "wtc-02",
+        "wtc-03"
+      ]
+    },
+    {
+      "label": "work-interview: weekly resume harvest vs. job interview prep",
+      "ids": [
+        "wi-01",
+        "wi-02",
+        "wi-03"
       ]
     }
   ]
