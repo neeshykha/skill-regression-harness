@@ -217,7 +217,22 @@ def check_trigger_collisions(skills: list[Skill]) -> list[Finding]:
     return findings
 
 
-def check_dispatch_coverage(skills: list[Skill], cases: list[dict]) -> list[Finding]:
+def switched_off_skills(home: Path) -> set[str]:
+    """Skills hidden from the model by `skillOverrides` in the user settings.
+
+    "off" hides a skill from both the model and /name; "user-invocable-only"
+    hides it from the model. Either way no dispatch can reach it, which makes it
+    as untestable by a positive case as a manual-only skill.
+    """
+    try:
+        settings = json.loads((home / ".claude" / "settings.json").read_text())
+    except (OSError, ValueError):
+        return set()
+    overrides = settings.get("skillOverrides") or {}
+    return {name for name, mode in overrides.items() if mode in ("off", "user-invocable-only")}
+
+
+def check_dispatch_coverage(skills: list[Skill], cases: list[dict], off: set[str] | None = None) -> list[Finding]:
     """A skill with no dispatch cases is untested and reports as untested nowhere.
 
     This is the harness's worst silent failure: add a sixth skill and Layer 1
@@ -230,13 +245,18 @@ def check_dispatch_coverage(skills: list[Skill], cases: list[dict]) -> list[Find
     a negative case that quotes its trigger and names it in `guards` tests that.
     Guards count only for manual-only skills and only on cases expecting no
     skill; otherwise `guards` becomes a way to mark anything covered without
-    testing it.
+    testing it. A skill switched off in settings (`off`, from
+    switched_off_skills) counts as manual-only for the same reason.
     """
     covered = {c["expected"] for c in cases} | {a for c in cases for a in c.get("acceptable", [])}
     guarded = {g for c in cases if c.get("expected") == NO_SKILL for g in c.get("guards", [])}
+    off = off or set()
     findings = []
     for s in skills:
-        manual_only = str(s.frontmatter.get("disable-model-invocation", "")).strip("'\" ").lower() == "true"
+        manual_only = (
+            str(s.frontmatter.get("disable-model-invocation", "")).strip("'\" ").lower() == "true"
+            or s.dir.name in off
+        )
         if s.dir.name not in covered and not (manual_only and s.dir.name in guarded):
             findings.append(
                 Finding(
@@ -401,7 +421,7 @@ def run_lint(
     findings += check_duplicate_names(skills)
     findings += check_references(skills, home, runtime_paths)
     if cases is not None:
-        findings += check_dispatch_coverage(skills, cases)
+        findings += check_dispatch_coverage(skills, cases, switched_off_skills(home))
     if cases is not None and traps is not None:
         findings += check_docs_counts(cases, traps, readme or Path(__file__).resolve().parent.parent / "README.md")
     findings += check_baseline_drift(drift_reasons or [])

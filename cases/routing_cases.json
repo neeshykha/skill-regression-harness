@@ -544,22 +544,28 @@
     {
       "id": "apa-01",
       "prompt": "I'm about to build a small web app that tracks my garden plantings. What stack should I use, and are there similar projects I should look at first?",
-      "expected": "advise-project-approach",
+      "expected": "none",
       "acceptable": [
-        "advise-project-approach"
+        "none"
       ],
       "trap": "advise_scope",
-      "why": "Stack selection plus comparables, both claimed. The garden vocabulary is bait for garden-bed-build."
+      "why": "Stack selection plus comparables, both claimed. The garden vocabulary is bait for garden-bed-build. Nov 6, 2026 (his card): advise-project-approach is set to \"off\" in settings.json skillOverrides, so this is now a guard. A dispatch to advise-project-approach means the off switch stopped being honored. Restore the old expectation if he turns it back on.",
+      "guards": [
+        "advise-project-approach"
+      ]
     },
     {
       "id": "apa-02",
       "prompt": "Look over the skill-regression-harness repo and tell me what you'd change about its architecture.",
-      "expected": "advise-project-approach",
+      "expected": "none",
       "acceptable": [
-        "advise-project-approach"
+        "none"
       ],
       "trap": "advise_scope",
-      "why": "Repo analysis and architecture critique, both claimed. The repo name is bait for skill-check."
+      "why": "Repo analysis and architecture critique, both claimed. The repo name is bait for skill-check. Nov 6, 2026 (his card): advise-project-approach is set to \"off\" in settings.json skillOverrides, so this is now a guard. A dispatch to advise-project-approach means the off switch stopped being honored. Restore the old expectation if he turns it back on.",
+      "guards": [
+        "advise-project-approach"
+      ]
     },
     {
       "id": "apa-03",
@@ -604,12 +610,15 @@
     {
       "id": "nlm-01",
       "prompt": "Create a podcast about the Salesforce flow inventory in NotebookLM.",
-      "expected": "notebooklm",
+      "expected": "none",
       "acceptable": [
-        "notebooklm"
+        "none"
       ],
       "trap": "notebooklm_scope",
-      "why": "The claimed 'create a podcast about X'."
+      "why": "The claimed 'create a podcast about X'. Nov 6, 2026 (his card): notebooklm is set to \"off\" in settings.json skillOverrides, so this is now a guard. A dispatch to notebooklm means the off switch stopped being honored. Restore the old expectation if he turns it back on.",
+      "guards": [
+        "notebooklm"
+      ]
     },
     {
       "id": "nlm-02",
@@ -654,12 +663,15 @@
     {
       "id": "pwf-01",
       "prompt": "This migration is going to run long and I'll probably /clear halfway through. Keep the plan and findings on disk so we don't lose them.",
-      "expected": "planning-with-files",
+      "expected": "none",
       "acceptable": [
-        "planning-with-files"
+        "none"
       ],
       "trap": "router_scope",
-      "why": "Surviving a /clear with plans on disk is the skill's whole pitch, without naming task_plan.md."
+      "why": "Surviving a /clear with plans on disk is the skill's whole pitch, without naming task_plan.md. Nov 6, 2026 (his card): planning-with-files is set to \"off\" in settings.json skillOverrides, so this is now a guard. A dispatch to planning-with-files means the off switch stopped being honored. Restore the old expectation if he turns it back on.",
+      "guards": [
+        "planning-with-files"
+      ]
     },
     {
       "id": "rt-01",

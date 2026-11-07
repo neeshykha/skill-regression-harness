@@ -24,6 +24,7 @@ from harness.lint import (  # noqa: E402
     check_trigger_collisions,
     check_untested_triggers,
     load_runtime_paths,
+    switched_off_skills,
 )
 from harness.preflight import envelope_error  # noqa: E402
 from harness import routing as routing_mod  # noqa: E402
@@ -439,13 +440,31 @@ class TestDispatchCoverage(unittest.TestCase):
         cases = [{"id": "c1", "prompt": "x", "expected": "car-check", "acceptable": ["car-check"], "guards": ["toil-mining"]}]
         self.assertEqual([f.skill for f in check_dispatch_coverage([s], cases)], ["toil-mining"])
 
+    def test_skill_switched_off_in_settings_is_covered_by_a_guard_case(self):
+        """skillOverrides "off" hides a skill from the model the same way the
+        manual-only flag does, so a guard is the only test that can pass."""
+        s = make_skill("notebooklm", dirname="notebooklm")
+        cases = [{"id": "c1", "prompt": "x", "expected": "none", "acceptable": ["none"], "guards": ["notebooklm"]}]
+        self.assertEqual(check_dispatch_coverage([s], cases, {"notebooklm"}), [])
+        self.assertEqual([f.skill for f in check_dispatch_coverage([s], cases)], ["notebooklm"])
+
+    def test_switched_off_skills_reads_settings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            (home / ".claude").mkdir()
+            (home / ".claude" / "settings.json").write_text(
+                json.dumps({"skillOverrides": {"a": "off", "b": "user-invocable-only", "c": "name-only", "d": "on"}})
+            )
+            self.assertEqual(switched_off_skills(home), {"a", "b"})
+            self.assertEqual(switched_off_skills(home / "missing"), set())
+
     def test_live_skill_set_is_fully_covered(self):
         path = Path(__file__).resolve().parent.parent / "cases" / "routing_cases.json"
         cases = json.loads(path.read_text())["cases"]
         skills = discover([Path.home() / ".claude" / "skills"])
         if not skills:
             self.skipTest("no installed skills on this machine")
-        self.assertEqual(check_dispatch_coverage(skills, cases), [])
+        self.assertEqual(check_dispatch_coverage(skills, cases, switched_off_skills(Path.home())), [])
 
 
 class TestUntestedTriggers(unittest.TestCase):
