@@ -1,6 +1,6 @@
 {
   "_comment": "Baseline the dispatch results were produced against. Update it only when a run has been re-validated, never to silence a drift warning.",
-  "cli_version": "2.1.319 (Claude Code)",
+  "cli_version": "2.1.325 (Claude Code)",
   "model": "sonnet",
   "descriptions": {
     "advise-project-approach": "ef8b59b8435f6e76",
@@ -22,6 +22,7 @@
     "jira-ticket-builder": "c12c77228902dd37",
     "learn": "1b1fb2cf6f1e62b7",
     "loop-decisions": "ae9971f46c49ccbe",
+    "map-ladders": "6903fe7a390fecae",
     "model-baseline": "80585b51a991a265",
     "notebooklm": "735208dafa6f6ea2",
     "page-design": "62d07f53b6bb2d97",
@@ -37,7 +38,8 @@
     "source-verification": "6fd180e228564f10",
     "support-batch": "3573bcc7c59b64a6",
     "toil-mining": "0a1ed4434239a635",
-    "upshift-fable": "9698efc540238b66",
+    "travel-plan-viz": "c8157b54a690e71c",
+    "upshift-fable": "a79af7d125e3fdd2",
     "wheretocredit": "29aa8ad620f5f079",
     "work-interview": "8a21deb987f06278"
   }
