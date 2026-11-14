@@ -1,0 +1,17 @@
+[
+  {
+    "skill": "notebooklm",
+    "path": "~/.notebooklm/context.json",
+    "reason": "Legacy home-root fallback the CLI reads only for an unmigrated default profile; the profile migration already moved it into profiles/default/, and only `notebooklm use` writes context."
+  },
+  {
+    "skill": "planning-with-files",
+    "path": "~/.cache/pwf-sha",
+    "reason": "SHA cache the upstream v3 hooks write; the pattern-only install has no hooks, so nothing creates it and nothing tells the agent to read it."
+  },
+  {
+    "skill": "planning-with-files",
+    "path": "~/.claude/loop.md",
+    "reason": "Destination of the upstream loop.md template `cp` step, not a file the skill reads; the local install note marks that section as upstream-only."
+  }
+]

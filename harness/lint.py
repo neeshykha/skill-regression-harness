@@ -5,6 +5,7 @@ the checks that need a model are the expensive half of this harness, so anything
 provable from the files alone gets proven first.
 """
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -108,7 +109,14 @@ def check_duplicate_names(skills: list[Skill]) -> list[Finding]:
     return findings
 
 
-def check_references(skills: list[Skill], home: Path) -> list[Finding]:
+def load_runtime_paths(path: Path) -> list[dict]:
+    """Reads the runtime-path allowlist. No file means no allowlist, not a crash."""
+    if not path.exists():
+        return []
+    return json.loads(path.read_text())
+
+
+def check_references(skills: list[Skill], home: Path, runtime_paths: list[dict] | None = None) -> list[Finding]:
     """Every concrete filesystem path a skill body points at must exist.
 
     Templated paths (`~/Downloads/scorecard-<model>.html`) are reported at INFO
@@ -116,19 +124,44 @@ def check_references(skills: list[Skill], home: Path) -> list[Finding]:
     so their absence is the expected state, and the placeholder means there is
     no single path to test in any case. Treating them as errors produced this
     harness's first false positive against model-baseline.
+
+    Runtime paths listed in cases/runtime_paths.json are reported at INFO too:
+    a cache a hook writes, a CLI's legacy fallback, the destination of an
+    install step. Something other than the skill creates them on its own
+    schedule, so their absence today says nothing about whether the skill
+    works. No regex can tell those apart from a moved script, so the list is
+    explicit, keyed by skill and exact path, and an entry the skill no longer
+    mentions is a WARN so the list can't quietly outlive its reason.
     """
+    allowed = {(e["skill"], e["path"]) for e in runtime_paths or []}
     findings = []
     for s in skills:
-        for ref in s.referenced_paths():
+        refs = s.referenced_paths()
+        for ref in refs:
             if is_templated(ref):
                 findings.append(
                     Finding("templated_reference", INFO, s.dir.name, f"path is templated, existence not checked: {ref}")
+                )
+                continue
+            if (s.dir.name, ref) in allowed:
+                findings.append(
+                    Finding("runtime_reference", INFO, s.dir.name, f"known runtime path, existence not checked: {ref}")
                 )
                 continue
             resolved = Path(ref.replace("~", str(home), 1)) if ref.startswith("~") else Path(ref)
             if not resolved.exists():
                 findings.append(
                     Finding("broken_reference", ERROR, s.dir.name, f"references a path that does not exist: {ref}")
+                )
+        for skill, path in sorted(allowed):
+            if skill == s.dir.name and path not in refs:
+                findings.append(
+                    Finding(
+                        "stale_runtime_path",
+                        WARN,
+                        skill,
+                        f"listed in runtime_paths.json but the skill no longer references it: {path}",
+                    )
                 )
     return findings
 
@@ -184,7 +217,22 @@ def check_trigger_collisions(skills: list[Skill]) -> list[Finding]:
     return findings
 
 
-def check_dispatch_coverage(skills: list[Skill], cases: list[dict]) -> list[Finding]:
+def switched_off_skills(home: Path) -> set[str]:
+    """Skills hidden from the model by `skillOverrides` in the user settings.
+
+    "off" hides a skill from both the model and /name; "user-invocable-only"
+    hides it from the model. Either way no dispatch can reach it, which makes it
+    as untestable by a positive case as a manual-only skill.
+    """
+    try:
+        settings = json.loads((home / ".claude" / "settings.json").read_text())
+    except (OSError, ValueError):
+        return set()
+    overrides = settings.get("skillOverrides") or {}
+    return {name for name, mode in overrides.items() if mode in ("off", "user-invocable-only")}
+
+
+def check_dispatch_coverage(skills: list[Skill], cases: list[dict], off: set[str] | None = None) -> list[Finding]:
     """A skill with no dispatch cases is untested and reports as untested nowhere.
 
     This is the harness's worst silent failure: add a sixth skill and Layer 1
@@ -197,13 +245,18 @@ def check_dispatch_coverage(skills: list[Skill], cases: list[dict]) -> list[Find
     a negative case that quotes its trigger and names it in `guards` tests that.
     Guards count only for manual-only skills and only on cases expecting no
     skill; otherwise `guards` becomes a way to mark anything covered without
-    testing it.
+    testing it. A skill switched off in settings (`off`, from
+    switched_off_skills) counts as manual-only for the same reason.
     """
     covered = {c["expected"] for c in cases} | {a for c in cases for a in c.get("acceptable", [])}
     guarded = {g for c in cases if c.get("expected") == NO_SKILL for g in c.get("guards", [])}
+    off = off or set()
     findings = []
     for s in skills:
-        manual_only = str(s.frontmatter.get("disable-model-invocation", "")).strip("'\" ").lower() == "true"
+        manual_only = (
+            str(s.frontmatter.get("disable-model-invocation", "")).strip("'\" ").lower() == "true"
+            or s.dir.name in off
+        )
         if s.dir.name not in covered and not (manual_only and s.dir.name in guarded):
             findings.append(
                 Finding(
@@ -360,14 +413,15 @@ def run_lint(
     drift_reasons: list[str] | None = None,
     traps: list[dict] | None = None,
     readme: Path | None = None,
+    runtime_paths: list[dict] | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = []
     findings += check_frontmatter(skills)
     findings += check_name_matches_dir(skills)
     findings += check_duplicate_names(skills)
-    findings += check_references(skills, home)
+    findings += check_references(skills, home, runtime_paths)
     if cases is not None:
-        findings += check_dispatch_coverage(skills, cases)
+        findings += check_dispatch_coverage(skills, cases, switched_off_skills(home))
     if cases is not None and traps is not None:
         findings += check_docs_counts(cases, traps, readme or Path(__file__).resolve().parent.parent / "README.md")
     findings += check_baseline_drift(drift_reasons or [])

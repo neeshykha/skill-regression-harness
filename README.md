@@ -82,6 +82,16 @@ resumable — interrupt it and re-run, already-dispatched cases are skipped. Rec
 failures are skipped too; `--retry-failed` drops them first, and it's opt-in so a
 deterministically-failing case can't retry forever.
 
+```bash
+python3 run.py --rerun scan-03 --times 2
+```
+
+Re-dispatches one case (repeat `--rerun` for more) to see whether a routing disagreement
+reproduces. `--retry-failed` can't do this: it only drops rows that errored, and a
+wrong-skill result is a recorded verdict. Rows go to `runs/rerun-<date>.jsonl`; the day's
+dispatch file, the report, and the baseline aren't touched. Exits `1` when a case
+disagreed on every run or a call errored, `0` otherwise.
+
 Exit codes are the report-by-exception contract: `0` nothing to act on, `1` findings,
 `2` couldn't run.
 
@@ -136,8 +146,8 @@ reports nothing, and a check that silently stops reporting is worse than no chec
 
 ## The case set is a specification, not ground truth
 
-`cases/routing_cases.json` holds 63 frozen prompts across seventeen confusable groups, each with
-an `expected` skill, an `acceptable` set, and a written reason it exists. Of those, 21 expect *no*
+`cases/routing_cases.json` holds 128 frozen prompts across 37 confusable groups, each with
+an `expected` skill, an `acceptable` set, and a written reason it exists. 43 expect *no*
 skill to fire — a suite of only positive cases can't detect over-triggering, which is the
 failure mode that actually shows up.
 
@@ -317,6 +327,31 @@ then correctly observed that the fragment didn't exist. The fix was to the detec
 the skill: templated paths are captured whole and reported at INFO, never as errors —
 their absence is the expected state for something the skill is about to write. Pinned as a
 regression test.
+
+### Three more, 2026-09-14: runtime paths
+
+By September the only errors left were three broken references, and they failed every lint
+run and printed after every SKILL.md edit. None of them pointed at a missing file the skill
+depends on:
+
+- `notebooklm` → `~/.notebooklm/context.json`: the CLI's legacy home-root fallback. The
+  profile migration already moved it into `profiles/default/`, and only `notebooklm use`
+  writes context in the first place.
+- `planning-with-files` → `~/.cache/pwf-sha`: a SHA cache the upstream v3 hooks write. The
+  pattern-only install has no hooks.
+- `planning-with-files` → `~/.claude/loop.md`: the destination of a `cp` install step.
+
+A regex can't tell these from a moved script: both are a concrete path under a directory
+that exists. So the fix is an explicit list, `cases/runtime_paths.json`, keyed by skill and
+exact path with a reason on each entry. Listed paths report at INFO as `runtime_reference`,
+the same path in a different skill is still an error, and an entry its skill no longer
+mentions is a WARN (`stale_runtime_path`) so the list can't outlive its reason.
+
+The `loop.md` one did expose a real problem, just not the one the lint named. Its `cp`
+source, `${CLAUDE_PLUGIN_ROOT}/templates/loop.md`, doesn't exist in a skill-only install,
+and the path regex only matches `~/` and `/Users/` forms, so it never saw that. That was
+fixed in the skill: its local install note now lists the `loop.md` template among the
+upstream-only sections.
 
 ## A reproducibility caveat worth knowing
 

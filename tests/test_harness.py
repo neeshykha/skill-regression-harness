@@ -5,13 +5,24 @@ CLI: the parsing half is what carries the logic, and it is the half that can be
 pinned down without spending money or needing a session.
 """
 
+import contextlib
+import io
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# run.py imports the report module, which needs claude-eval-kit. Everything else
+# here is stdlib-only, so a checkout without the kit still runs the other tests.
+try:
+    import run as run_mod  # noqa: E402
+except ModuleNotFoundError:
+    run_mod = None
 
 from harness.baseline import Baseline, description_hash  # noqa: E402
 from harness.discover import Skill, discover, is_templated, parse_frontmatter  # noqa: E402
@@ -23,6 +34,8 @@ from harness.lint import (  # noqa: E402
     check_references,
     check_trigger_collisions,
     check_untested_triggers,
+    load_runtime_paths,
+    switched_off_skills,
 )
 from harness.preflight import envelope_error  # noqa: E402
 from harness import routing as routing_mod  # noqa: E402
@@ -83,6 +96,45 @@ class TestReferences(unittest.TestCase):
         findings = check_references([s], Path.home())
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0].severity, "error")
+
+    def test_runtime_path_is_info_not_error(self):
+        """Regression: notebooklm and planning-with-files mention a CLI fallback
+        file, a hook cache, and a `cp` destination. None exist until something
+        else writes them, and all three failed every lint run as broken."""
+        s = make_skill("x", body="the hook caches hashes in ~/.cache/nope-9f3a")
+        allow = [{"skill": "x", "path": "~/.cache/nope-9f3a", "reason": "hook cache"}]
+        findings = check_references([s], Path.home(), allow)
+        self.assertEqual([(f.check, f.severity) for f in findings], [("runtime_reference", "info")])
+
+    def test_runtime_allowlist_is_scoped_to_its_skill(self):
+        s = make_skill("y", body="Read ~/.cache/nope-9f3a")
+        allow = [{"skill": "x", "path": "~/.cache/nope-9f3a", "reason": "hook cache"}]
+        findings = check_references([s], Path.home(), allow)
+        self.assertEqual([f.check for f in findings], ["broken_reference"])
+
+    def test_runtime_allowlist_does_not_cover_other_paths(self):
+        s = make_skill("x", body="Read ~/.cache/nope-9f3a and ~/.cache/other-9f3a")
+        allow = [{"skill": "x", "path": "~/.cache/nope-9f3a", "reason": "hook cache"}]
+        findings = check_references([s], Path.home(), allow)
+        broken = [f.detail for f in findings if f.check == "broken_reference"]
+        self.assertEqual(len(broken), 1)
+        self.assertIn("other-9f3a", broken[0])
+
+    def test_unreferenced_runtime_entry_warns(self):
+        s = make_skill("x", body="no paths here anymore")
+        allow = [{"skill": "x", "path": "~/.cache/nope-9f3a", "reason": "hook cache"}]
+        findings = check_references([s], Path.home(), allow)
+        self.assertEqual([(f.check, f.severity) for f in findings], [("stale_runtime_path", "warn")])
+
+    def test_missing_runtime_file_means_empty_allowlist(self):
+        self.assertEqual(load_runtime_paths(Path(tempfile.gettempdir()) / "no-such-runtime-9f3a.json"), [])
+
+    def test_shipped_runtime_paths_are_well_formed(self):
+        entries = load_runtime_paths(Path(__file__).resolve().parent.parent / "cases" / "runtime_paths.json")
+        self.assertTrue(entries)
+        for e in entries:
+            self.assertTrue(e.get("skill") and e.get("path") and e.get("reason"), e)
+            self.assertFalse(is_templated(e["path"]), "templated paths are already INFO; don't list them")
 
 
 class TestLintChecks(unittest.TestCase):
@@ -399,13 +451,31 @@ class TestDispatchCoverage(unittest.TestCase):
         cases = [{"id": "c1", "prompt": "x", "expected": "car-check", "acceptable": ["car-check"], "guards": ["toil-mining"]}]
         self.assertEqual([f.skill for f in check_dispatch_coverage([s], cases)], ["toil-mining"])
 
+    def test_skill_switched_off_in_settings_is_covered_by_a_guard_case(self):
+        """skillOverrides "off" hides a skill from the model the same way the
+        manual-only flag does, so a guard is the only test that can pass."""
+        s = make_skill("notebooklm", dirname="notebooklm")
+        cases = [{"id": "c1", "prompt": "x", "expected": "none", "acceptable": ["none"], "guards": ["notebooklm"]}]
+        self.assertEqual(check_dispatch_coverage([s], cases, {"notebooklm"}), [])
+        self.assertEqual([f.skill for f in check_dispatch_coverage([s], cases)], ["notebooklm"])
+
+    def test_switched_off_skills_reads_settings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            (home / ".claude").mkdir()
+            (home / ".claude" / "settings.json").write_text(
+                json.dumps({"skillOverrides": {"a": "off", "b": "user-invocable-only", "c": "name-only", "d": "on"}})
+            )
+            self.assertEqual(switched_off_skills(home), {"a", "b"})
+            self.assertEqual(switched_off_skills(home / "missing"), set())
+
     def test_live_skill_set_is_fully_covered(self):
         path = Path(__file__).resolve().parent.parent / "cases" / "routing_cases.json"
         cases = json.loads(path.read_text())["cases"]
         skills = discover([Path.home() / ".claude" / "skills"])
         if not skills:
             self.skipTest("no installed skills on this machine")
-        self.assertEqual(check_dispatch_coverage(skills, cases), [])
+        self.assertEqual(check_dispatch_coverage(skills, cases, switched_off_skills(Path.home())), [])
 
 
 class TestUntestedTriggers(unittest.TestCase):
@@ -467,6 +537,95 @@ class TestBaseline(unittest.TestCase):
             p = Path(d) / "baseline.json"
             Baseline().save(p, self.skills, "2.1.220", "sonnet")
             self.assertEqual(Baseline.load(p).drift(self.skills, "2.1.220", "sonnet"), [])
+
+
+@unittest.skipIf(run_mod is None, "run.py needs claude-eval-kit, which is not installed")
+class TestRerun(unittest.TestCase):
+    """Pinned against the gap that shipped: the skill-check instructions sent a
+    wrong-skill result to --retry-failed, which only drops rows that errored.
+    On Nov 13, 2026 scan-03 had to be re-dispatched with a throwaway script."""
+
+    CASES = [
+        {"id": "a-01", "prompt": "p1", "expected": "skill-check", "acceptable": ["skill-check"]},
+        {"id": "a-02", "prompt": "p2", "expected": "none", "acceptable": ["none"]},
+    ]
+
+    def _run(self, invoked_sequence, ids=("a-01",), times=2, preflight_ok=True, env_guard=False):
+        calls = []
+        seq = list(invoked_sequence)
+
+        def fake_dispatch(prompt, model, cwd, timeout=120):
+            calls.append((prompt, model))
+            nxt = seq.pop(0)
+            if isinstance(nxt, Exception):
+                raise nxt
+            return routing_mod.Dispatch("", nxt, None, True)
+
+        real_dispatch = run_mod.routing.dispatch_one
+        real_check = run_mod.preflight_mod.check
+        real_guard = os.environ.pop(routing_mod.RECURSION_GUARD, None)
+        run_mod.routing.dispatch_one = fake_dispatch
+        run_mod.preflight_mod.check = lambda: SimpleNamespace(ok=preflight_ok, detail="logged out")
+        if env_guard:
+            os.environ[routing_mod.RECURSION_GUARD] = "1"
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                out = Path(d) / "rerun.jsonl"
+                with contextlib.redirect_stderr(io.StringIO()):
+                    code = run_mod.rerun(self.CASES, list(ids), times, "sonnet", frozenset({"skill-check"}), out)
+                rows = [json.loads(x) for x in out.read_text().splitlines()] if out.exists() else []
+        finally:
+            run_mod.routing.dispatch_one = real_dispatch
+            run_mod.preflight_mod.check = real_check
+            os.environ.pop(routing_mod.RECURSION_GUARD, None)
+            if real_guard is not None:
+                os.environ[routing_mod.RECURSION_GUARD] = real_guard
+        return code, rows, calls
+
+    def test_a_miss_on_every_run_reproduces_and_is_a_finding(self):
+        code, rows, calls = self._run([NO_SKILL, NO_SKILL])
+        self.assertEqual(code, 1)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual([r["invoked"] for r in rows], [NO_SKILL, NO_SKILL])
+
+    def test_a_case_that_passes_on_rerun_is_not_a_finding(self):
+        code, _, _ = self._run(["skill-check", "skill-check"])
+        self.assertEqual(code, 0)
+
+    def test_a_flaky_case_is_not_a_finding(self):
+        code, _, _ = self._run([NO_SKILL, "skill-check"])
+        self.assertEqual(code, 0)
+
+    def test_rows_carry_the_run_number_and_model(self):
+        _, rows, _ = self._run(["skill-check"], times=1)
+        self.assertEqual(rows, [{"id": "a-01", "run": 1, "model": "sonnet", "invoked": "skill-check"}])
+
+    def test_each_named_case_is_dispatched_times_times(self):
+        code, rows, calls = self._run(["skill-check"] * 3 + [NO_SKILL] * 3, ids=("a-01", "a-02"), times=3)
+        self.assertEqual(code, 0)
+        self.assertEqual([c[0] for c in calls], ["p1"] * 3 + ["p2"] * 3)
+        self.assertEqual(len(rows), 6)
+
+    def test_a_crashed_call_is_recorded_as_an_error_and_is_a_finding(self):
+        code, rows, _ = self._run([RuntimeError("boom"), "skill-check"])
+        self.assertEqual(code, 1)
+        self.assertEqual(rows[0], {"id": "a-01", "run": 1, "model": "sonnet", "error": "boom"})
+
+    def test_unknown_case_id_cannot_run_and_spends_nothing(self):
+        code, rows, calls = self._run([], ids=("nope-01",))
+        self.assertEqual((code, rows, calls), (2, [], []))
+
+    def test_logged_out_cli_cannot_run_and_spends_nothing(self):
+        code, rows, calls = self._run([], preflight_ok=False)
+        self.assertEqual((code, rows, calls), (2, [], []))
+
+    def test_refuses_inside_a_dispatched_sub_session(self):
+        code, rows, calls = self._run([], env_guard=True)
+        self.assertEqual((code, rows, calls), (2, [], []))
+
+    def test_zero_times_cannot_run(self):
+        code, _, calls = self._run([], times=0)
+        self.assertEqual((code, calls), (2, []))
 
 
 if __name__ == "__main__":
