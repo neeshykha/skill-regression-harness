@@ -146,8 +146,8 @@ reports nothing, and a check that silently stops reporting is worse than no chec
 
 ## The case set is a specification, not ground truth
 
-`cases/routing_cases.json` holds 126 frozen prompts across 37 confusable groups, each with
-an `expected` skill, an `acceptable` set, and a written reason it exists. 42 expect *no*
+`cases/routing_cases.json` holds 128 frozen prompts across 37 confusable groups, each with
+an `expected` skill, an `acceptable` set, and a written reason it exists. 43 expect *no*
 skill to fire — a suite of only positive cases can't detect over-triggering, which is the
 failure mode that actually shows up.
 
@@ -372,9 +372,9 @@ dispatch testing tells you nothing about them — and they send mail, write to S
 and touch calendars, so executing them on a schedule to see whether they still work would
 cause the damage it's meant to prevent.
 
-Output conformance is also out of scope for now. Only `car-check` runs hermetically enough
-to assert on its output. `jira-ticket-builder` and `interview-loop` need live Salesforce,
+Output conformance is also out of scope for now. Of the six skills the recorded live run
+covered, only `car-check` runs hermetically enough to assert on its output. `jira-ticket-builder` and `interview-loop` need live Salesforce,
 Gmail, or calendar. `model-baseline` launches clean-room model runs of its own, and
 `skill-check` runs this harness, which is how the recursion described above started.
 `improvement-notes` audits whatever session invoked it, so there's no fixed output to
-compare against. Dispatch is the layer that generalizes across all of them.
+compare against. Dispatch is the layer that generalizes across every skill in the suite.

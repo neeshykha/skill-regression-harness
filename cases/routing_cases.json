@@ -1260,6 +1260,26 @@
       "why": "Near-miss: job-interview prep, which work-interview hands to interview-loop. work-interview firing is the failure."
     },
     {
+      "id": "wi-04",
+      "prompt": "Time for my weekly interview.",
+      "expected": "work-interview",
+      "acceptable": [
+        "work-interview"
+      ],
+      "trap": "work_interview_scope",
+      "why": "Verbatim trigger that reads like a job interview. The description claims 'weekly interview' outright, so interview-loop taking it is the failure this case exists to catch. Written Sep 27, 2026 as wi-02 on GitHub's main; renumbered in the Nov 13, 2026 merge (his card)."
+    },
+    {
+      "id": "wi-05",
+      "prompt": "Add the Maven feedback loop to my master resume.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "work_interview_scope",
+      "why": "A direct resume edit, not the weekly interview, so naming master_resume is not enough for work-interview to fire. A bundled career skill this suite doesn't own may take it, which scores as outside tested set, not a miss. Written Sep 27, 2026 on GitHub's main; kept in the Nov 13, 2026 merge (his card)."
+    },
+    {
       "id": "tpv-01",
       "prompt": "Make me a trip page for the Quebec trip, Dec 14 to 19.",
       "expected": "travel-plan-viz",
@@ -1614,7 +1634,9 @@
       "ids": [
         "wi-01",
         "wi-02",
-        "wi-03"
+        "wi-03",
+        "wi-04",
+        "wi-05"
       ]
     },
     {
