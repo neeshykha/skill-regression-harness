@@ -940,22 +940,30 @@
     {
       "id": "bd-01",
       "prompt": "Use the old batch flow today and pull the decision page.",
-      "expected": "batch-decisions",
+      "expected": "none",
       "acceptable": [
-        "batch-decisions"
+        "none",
+        "support-batch"
       ],
       "trap": "batch_scope",
-      "why": "Clear positive, verbatim triggers 'old batch flow' and 'pull the decision page'."
+      "why": "The claimed 'old batch flow' and 'pull the decision page'. Nov 13, 2026 (his card): batch-decisions is set to \"off\" in settings.json skillOverrides, so this is now a guard. A dispatch to batch-decisions means the off switch stopped being honored. support-batch is acceptable (his card): it is the live batch skill and the nearest match once the old flow is hidden. Restore the old expectation if he turns it back on.",
+      "guards": [
+        "batch-decisions"
+      ]
     },
     {
       "id": "bd-02",
       "prompt": "ESCALATED BATCH DECISIONS\n00268386: nudge engineering in the ticket\n00271102: close, resolved by release 4.12",
-      "expected": "batch-decisions",
+      "expected": "none",
       "acceptable": [
-        "batch-decisions"
+        "none",
+        "support-batch"
       ],
       "trap": "batch_scope",
-      "why": "Paraphrase: a pasted block starting ESCALATED BATCH DECISIONS, which the description claims."
+      "why": "A pasted block starting ESCALATED BATCH DECISIONS, which the description claims. Nov 13, 2026 (his card): batch-decisions is set to \"off\" in settings.json skillOverrides, so this is now a guard. A dispatch to batch-decisions means the off switch stopped being honored. support-batch is acceptable (his card): it is the live batch skill and the nearest match once the old flow is hidden. Restore the old expectation if he turns it back on.",
+      "guards": [
+        "batch-decisions"
+      ]
     },
     {
       "id": "bd-03",
@@ -1021,12 +1029,16 @@
     {
       "id": "ld-03",
       "prompt": "Pull the decision page.",
-      "expected": "batch-decisions",
+      "expected": "none",
       "acceptable": [
-        "batch-decisions"
+        "none",
+        "support-batch"
       ],
       "trap": "loop_scope",
-      "why": "Near-miss: the daily Escalated page belongs to batch-decisions, and loop-decisions disclaims it. loop-decisions firing is the failure."
+      "why": "Near-miss: the daily Escalated page belonged to batch-decisions, and loop-decisions disclaims it. loop-decisions firing is the failure. Nov 13, 2026 (his card): batch-decisions is set to \"off\" in settings.json skillOverrides, so this is now a guard too. A dispatch to batch-decisions means the off switch stopped being honored. support-batch is acceptable (his card): it is the live batch skill. Restore the old expectation if he turns it back on.",
+      "guards": [
+        "batch-decisions"
+      ]
     },
     {
       "id": "learn-01",
