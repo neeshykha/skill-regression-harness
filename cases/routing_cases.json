@@ -953,7 +953,7 @@
     },
     {
       "id": "bd-02",
-      "prompt": "ESCALATED BATCH DECISIONS\n00268386: nudge engineering in the ticket\n00271102: close, resolved by release 4.12",
+      "prompt": "ESCALATED BATCH DECISIONS\n00268386: nudge engineering in the ticket\n00999902: close, resolved by release 4.12",
       "expected": "none",
       "acceptable": [
         "none",
@@ -997,7 +997,7 @@
     },
     {
       "id": "sb-03",
-      "prompt": "What's the status of case 00271102?",
+      "prompt": "What's the status of case 00999902?",
       "expected": "none",
       "acceptable": [
         "none",
@@ -1250,7 +1250,7 @@
     },
     {
       "id": "wi-03",
-      "prompt": "Prep me for my Teal Communications interview on Tuesday.",
+      "prompt": "Prep me for my Brightwater Telecom interview on Tuesday.",
       "expected": "interview-loop",
       "acceptable": [
         "interview-loop",
