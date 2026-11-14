@@ -82,6 +82,16 @@ resumable — interrupt it and re-run, already-dispatched cases are skipped. Rec
 failures are skipped too; `--retry-failed` drops them first, and it's opt-in so a
 deterministically-failing case can't retry forever.
 
+```bash
+python3 run.py --rerun scan-03 --times 2
+```
+
+Re-dispatches one case (repeat `--rerun` for more) to see whether a routing disagreement
+reproduces. `--retry-failed` can't do this: it only drops rows that errored, and a
+wrong-skill result is a recorded verdict. Rows go to `runs/rerun-<date>.jsonl`; the day's
+dispatch file, the report, and the baseline aren't touched. Exits `1` when a case
+disagreed on every run or a call errored, `0` otherwise.
+
 Exit codes are the report-by-exception contract: `0` nothing to act on, `1` findings,
 `2` couldn't run.
 

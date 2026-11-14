@@ -5,13 +5,19 @@ CLI: the parsing half is what carries the logic, and it is the half that can be
 pinned down without spending money or needing a session.
 """
 
+import contextlib
+import io
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import run as run_mod  # noqa: E402
 
 from harness.baseline import Baseline, description_hash  # noqa: E402
 from harness.discover import Skill, discover, is_templated, parse_frontmatter  # noqa: E402
@@ -526,6 +532,94 @@ class TestBaseline(unittest.TestCase):
             p = Path(d) / "baseline.json"
             Baseline().save(p, self.skills, "2.1.220", "sonnet")
             self.assertEqual(Baseline.load(p).drift(self.skills, "2.1.220", "sonnet"), [])
+
+
+class TestRerun(unittest.TestCase):
+    """Pinned against the gap that shipped: the skill-check instructions sent a
+    wrong-skill result to --retry-failed, which only drops rows that errored.
+    On Nov 13, 2026 scan-03 had to be re-dispatched with a throwaway script."""
+
+    CASES = [
+        {"id": "a-01", "prompt": "p1", "expected": "skill-check", "acceptable": ["skill-check"]},
+        {"id": "a-02", "prompt": "p2", "expected": "none", "acceptable": ["none"]},
+    ]
+
+    def _run(self, invoked_sequence, ids=("a-01",), times=2, preflight_ok=True, env_guard=False):
+        calls = []
+        seq = list(invoked_sequence)
+
+        def fake_dispatch(prompt, model, cwd, timeout=120):
+            calls.append((prompt, model))
+            nxt = seq.pop(0)
+            if isinstance(nxt, Exception):
+                raise nxt
+            return routing_mod.Dispatch("", nxt, None, True)
+
+        real_dispatch = run_mod.routing.dispatch_one
+        real_check = run_mod.preflight_mod.check
+        real_guard = os.environ.pop(routing_mod.RECURSION_GUARD, None)
+        run_mod.routing.dispatch_one = fake_dispatch
+        run_mod.preflight_mod.check = lambda: SimpleNamespace(ok=preflight_ok, detail="logged out")
+        if env_guard:
+            os.environ[routing_mod.RECURSION_GUARD] = "1"
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                out = Path(d) / "rerun.jsonl"
+                with contextlib.redirect_stderr(io.StringIO()):
+                    code = run_mod.rerun(self.CASES, list(ids), times, "sonnet", frozenset({"skill-check"}), out)
+                rows = [json.loads(x) for x in out.read_text().splitlines()] if out.exists() else []
+        finally:
+            run_mod.routing.dispatch_one = real_dispatch
+            run_mod.preflight_mod.check = real_check
+            os.environ.pop(routing_mod.RECURSION_GUARD, None)
+            if real_guard is not None:
+                os.environ[routing_mod.RECURSION_GUARD] = real_guard
+        return code, rows, calls
+
+    def test_a_miss_on_every_run_reproduces_and_is_a_finding(self):
+        code, rows, calls = self._run([NO_SKILL, NO_SKILL])
+        self.assertEqual(code, 1)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual([r["invoked"] for r in rows], [NO_SKILL, NO_SKILL])
+
+    def test_a_case_that_passes_on_rerun_is_not_a_finding(self):
+        code, _, _ = self._run(["skill-check", "skill-check"])
+        self.assertEqual(code, 0)
+
+    def test_a_flaky_case_is_not_a_finding(self):
+        code, _, _ = self._run([NO_SKILL, "skill-check"])
+        self.assertEqual(code, 0)
+
+    def test_rows_carry_the_run_number_and_model(self):
+        _, rows, _ = self._run(["skill-check"], times=1)
+        self.assertEqual(rows, [{"id": "a-01", "run": 1, "model": "sonnet", "invoked": "skill-check"}])
+
+    def test_each_named_case_is_dispatched_times_times(self):
+        code, rows, calls = self._run(["skill-check"] * 3 + [NO_SKILL] * 3, ids=("a-01", "a-02"), times=3)
+        self.assertEqual(code, 0)
+        self.assertEqual([c[0] for c in calls], ["p1"] * 3 + ["p2"] * 3)
+        self.assertEqual(len(rows), 6)
+
+    def test_a_crashed_call_is_recorded_as_an_error_and_is_a_finding(self):
+        code, rows, _ = self._run([RuntimeError("boom"), "skill-check"])
+        self.assertEqual(code, 1)
+        self.assertEqual(rows[0], {"id": "a-01", "run": 1, "model": "sonnet", "error": "boom"})
+
+    def test_unknown_case_id_cannot_run_and_spends_nothing(self):
+        code, rows, calls = self._run([], ids=("nope-01",))
+        self.assertEqual((code, rows, calls), (2, [], []))
+
+    def test_logged_out_cli_cannot_run_and_spends_nothing(self):
+        code, rows, calls = self._run([], preflight_ok=False)
+        self.assertEqual((code, rows, calls), (2, [], []))
+
+    def test_refuses_inside_a_dispatched_sub_session(self):
+        code, rows, calls = self._run([], env_guard=True)
+        self.assertEqual((code, rows, calls), (2, [], []))
+
+    def test_zero_times_cannot_run(self):
+        code, _, calls = self._run([], times=0)
+        self.assertEqual((code, calls), (2, []))
 
 
 if __name__ == "__main__":

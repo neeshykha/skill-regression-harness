@@ -3,6 +3,7 @@
 
     python3 run.py --lint-only      static checks, no model calls, no cost
     python3 run.py                  static checks + live dispatch, renders HTML
+    python3 run.py --rerun ID       re-dispatch one case to see if a miss reproduces
 
 Exit codes are the report-by-exception contract:
     0  nothing to act on
@@ -31,6 +32,92 @@ def load_cases(path: Path) -> tuple[list[dict], list[dict]]:
     return data["cases"], data.get("traps", [])
 
 
+def rerun(
+    cases: list[dict],
+    ids: list[str],
+    times: int,
+    model: str,
+    own: frozenset = frozenset(),
+    out_path: Path | None = None,
+) -> int:
+    """Re-dispatches named cases to see whether a routing disagreement reproduces.
+
+    One disagreeing dispatch is a hypothesis, not a finding: every dispatch is a
+    real sub-session with run-to-run variance. --retry-failed can't answer this,
+    because it only drops rows that errored; a wrong-skill result is a recorded
+    verdict and stays put. This writes to its own file, so the day's dispatch
+    results, the HTML report, and the baseline stay as the full run left them.
+
+    Returns 1 when any case disagreed on every run (it reproduces) or a call
+    errored, 0 otherwise, and 2 when it could not run.
+    """
+    by_id = {c["id"]: c for c in cases}
+    unknown = [i for i in ids if i not in by_id]
+    if unknown:
+        print(f"Unknown case id(s): {', '.join(unknown)}", file=sys.stderr)
+        return 2
+    if times < 1:
+        print("--times must be at least 1", file=sys.stderr)
+        return 2
+    if os.environ.get(routing.RECURSION_GUARD):
+        print(
+            f"{routing.RECURSION_GUARD} is set: this process is running inside a dispatched "
+            "sub-session. Refusing to re-dispatch.",
+            file=sys.stderr,
+        )
+        return 2
+    pre = preflight_mod.check()
+    if not pre.ok:
+        print(f"PREFLIGHT FAILED: {pre.detail}", file=sys.stderr)
+        return 2
+
+    out_path = out_path or (Path(__file__).parent / "runs" / f"rerun-{date.today():%Y-%m-%d}.jsonl")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Re-dispatching {len(ids)} case(s), {times} time(s) each, against {model}...", file=sys.stderr)
+
+    finding = False
+    with out_path.open("a") as out:
+        for cid in ids:
+            case = by_id[cid]
+            good = errors = 0
+            for n in range(1, times + 1):
+                try:
+                    d = routing.dispatch_one(case["prompt"], model, Path.home())
+                    invoked, error = d.invoked, d.error
+                except Exception as exc:
+                    invoked, error = None, str(exc)
+                row = {"id": cid, "run": n, "model": model}
+                row.update({"error": error} if error else {"invoked": invoked})
+                out.write(json.dumps(row) + "\n")
+                out.flush()
+
+                o = report_mod.RoutingOutcome(case=case, invoked=invoked, error=error, own=own)
+                if error:
+                    errors += 1
+                    verdict = f"ERROR: {error[:60]}"
+                elif o.ok or o.foreign:
+                    good += 1
+                    verdict = "ok" if o.ok else "ok (outside tested set)"
+                else:
+                    verdict = "miss"
+                print(f"  [{n}/{times}] {cid:9} -> {invoked or 'no verdict':24} {verdict}", file=sys.stderr)
+
+            if errors:
+                summary = f"{errors} errored call(s)"
+                finding = True
+            elif good == 0:
+                summary = "reproduces"
+                finding = True
+            elif good == times:
+                summary = "did not reproduce"
+            else:
+                summary = "flaky"
+            print(f"  {cid}: {good}/{times} correct, expected {case['expected']} -- {summary}", file=sys.stderr)
+
+    print(f"\nRows appended to {out_path}", file=sys.stderr)
+    return 1 if finding else 0
+
+
 def main() -> int:
     default_out = Path.home() / "Downloads" / f"skill-regression-{date.today():%Y-%m-%d}.html"
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -41,6 +128,16 @@ def main() -> int:
     p.add_argument("--predictions", type=Path, default=None, help="resumable JSONL of dispatch results")
     p.add_argument("--lint-only", action="store_true")
     p.add_argument("--retry-failed", action="store_true", help="re-dispatch cases previously recorded as errors")
+    p.add_argument(
+        "--rerun",
+        action="append",
+        default=None,
+        metavar="CASE_ID",
+        help="re-dispatch this case (repeatable) --times times and print each verdict, to see whether "
+        "a routing disagreement reproduces. Rows go to runs/rerun-<date>.jsonl; the day's dispatch "
+        "file, the HTML report, and the baseline are not touched.",
+    )
+    p.add_argument("--times", type=int, default=2, help="with --rerun: dispatches per case (default 2)")
     p.add_argument(
         "--if-changed",
         action="store_true",
@@ -70,6 +167,9 @@ def main() -> int:
         return 2
 
     cases, traps = load_cases(args.cases)
+    if args.rerun:
+        return rerun(cases, args.rerun, args.times, args.model, own=frozenset(s.dir.name for s in skills))
+
     version = baseline_mod.cli_version()
     base = baseline_mod.Baseline.load(args.baseline)
     drift = base.drift(skills, version, args.model)
