@@ -1246,6 +1246,37 @@
       ],
       "trap": "work_interview_scope",
       "why": "Near-miss: job-interview prep, which work-interview hands to interview-loop. work-interview firing is the failure."
+    },
+    {
+      "id": "tpv-01",
+      "prompt": "Make me a trip page for the Quebec trip, Dec 14 to 19.",
+      "expected": "travel-plan-viz",
+      "acceptable": [
+        "travel-plan-viz"
+      ],
+      "trap": "travel_plan_viz_scope",
+      "why": "Clear positive: 'trip page' for a named trip."
+    },
+    {
+      "id": "tpv-02",
+      "prompt": "Can you turn my New Orleans plan into one of those phone pages with a map and a list of what I need to book ahead?",
+      "expected": "travel-plan-viz",
+      "acceptable": [
+        "travel-plan-viz"
+      ],
+      "trap": "travel_plan_viz_scope",
+      "why": "Paraphrase: an existing plan turned into the map-and-book-by page, no trigger words."
+    },
+    {
+      "id": "tpv-03",
+      "prompt": "Which Delta routing to Quebec City earns more MQDs, through Detroit or through Montreal?",
+      "expected": "anthropic-skills:delta-mqd-optimizer",
+      "acceptable": [
+        "anthropic-skills:delta-mqd-optimizer",
+        "none"
+      ],
+      "trap": "travel_plan_viz_scope",
+      "why": "Near-miss: a trip question about MQDs with no page asked for. travel-plan-viz firing is the failure."
     }
   ],
   "traps": [
@@ -1542,6 +1573,14 @@
         "wi-01",
         "wi-02",
         "wi-03"
+      ]
+    },
+    {
+      "label": "travel-plan-viz: build a trip page vs. fare and MQD questions",
+      "ids": [
+        "tpv-01",
+        "tpv-02",
+        "tpv-03"
       ]
     }
   ]
