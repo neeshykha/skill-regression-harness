@@ -1289,6 +1289,36 @@
       ],
       "trap": "travel_plan_viz_scope",
       "why": "Near-miss: a trip question about MQDs with no page asked for. travel-plan-viz firing is the failure."
+    },
+    {
+      "id": "ml-01",
+      "prompt": "Build my map ladders.",
+      "expected": "map-ladders",
+      "acceptable": [
+        "map-ladders"
+      ],
+      "trap": "map_ladders_scope",
+      "why": "Clear positive, verbatim trigger 'build my map ladders'."
+    },
+    {
+      "id": "ml-02",
+      "prompt": "I tapped a few artist pairs on the Music Map page last night. Turn the ones I queued into Spotify playlists and pull my grades in.",
+      "expected": "map-ladders",
+      "acceptable": [
+        "map-ladders"
+      ],
+      "trap": "map_ladders_scope",
+      "why": "Paraphrase: queued pairs on the Music Map page, playlists, and grades, with none of the quoted trigger phrases."
+    },
+    {
+      "id": "ml-03",
+      "prompt": "Make me a ladder from Wilco to Caroline Polachek.",
+      "expected": "none",
+      "acceptable": [
+        "none"
+      ],
+      "trap": "map_ladders_scope",
+      "why": "Near-miss: a ladder named in chat with no page involved, which the description hands to bin/ladder.py directly. map-ladders firing is the failure."
     }
   ],
   "traps": [
@@ -1593,6 +1623,14 @@
         "tpv-01",
         "tpv-02",
         "tpv-03"
+      ]
+    },
+    {
+      "label": "map-ladders: ladders queued on the Music Map page vs. a ladder named in chat",
+      "ids": [
+        "ml-01",
+        "ml-02",
+        "ml-03"
       ]
     }
   ]
