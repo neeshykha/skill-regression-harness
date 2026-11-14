@@ -1009,22 +1009,30 @@
     {
       "id": "ld-01",
       "prompt": "Pull the loop page for this week.",
-      "expected": "loop-decisions",
+      "expected": "none",
       "acceptable": [
-        "loop-decisions"
+        "none",
+        "support-batch"
       ],
       "trap": "loop_scope",
-      "why": "Clear positive, verbatim trigger 'pull the loop page'."
+      "why": "The claimed 'pull the loop page'. Nov 14, 2026 (his card): loop-decisions is set to \"off\" in settings.json skillOverrides, so this is now a guard. A dispatch to loop-decisions means the off switch stopped being honored. support-batch is acceptable (his card): it is the live batch skill. Restore the old expectation if he turns it back on.",
+      "guards": [
+        "loop-decisions"
+      ]
     },
     {
       "id": "ld-02",
       "prompt": "LOOP PASS DECISIONS\nL-14: close the loop, the 7-day watch ended clean\nL-15: extend the watch 7 more days",
-      "expected": "loop-decisions",
+      "expected": "none",
       "acceptable": [
-        "loop-decisions"
+        "none",
+        "support-batch"
       ],
       "trap": "loop_scope",
-      "why": "Paraphrase: a pasted block starting LOOP PASS DECISIONS, which the description claims."
+      "why": "A pasted block starting LOOP PASS DECISIONS, which the description claims. Nov 14, 2026 (his card): loop-decisions is set to \"off\" in settings.json skillOverrides, so this is now a guard. A dispatch to loop-decisions means the off switch stopped being honored. support-batch is acceptable (his card): it is the live batch skill. Restore the old expectation if he turns it back on.",
+      "guards": [
+        "loop-decisions"
+      ]
     },
     {
       "id": "ld-03",
@@ -1035,9 +1043,10 @@
         "support-batch"
       ],
       "trap": "loop_scope",
-      "why": "Near-miss: the daily Escalated page belonged to batch-decisions, and loop-decisions disclaims it. loop-decisions firing is the failure. Nov 13, 2026 (his card): batch-decisions is set to \"off\" in settings.json skillOverrides, so this is now a guard too. A dispatch to batch-decisions means the off switch stopped being honored. support-batch is acceptable (his card): it is the live batch skill. Restore the old expectation if he turns it back on.",
+      "why": "Near-miss: the daily Escalated page belonged to batch-decisions, and loop-decisions disclaims it. loop-decisions firing is the failure. Nov 13, 2026 (his card): batch-decisions is set to \"off\" in settings.json skillOverrides, so this is now a guard too. A dispatch to batch-decisions means the off switch stopped being honored. support-batch is acceptable (his card): it is the live batch skill. Restore the old expectation if he turns it back on. Nov 14, 2026 (his card): loop-decisions is off as well, so it is guarded here too.",
       "guards": [
-        "batch-decisions"
+        "batch-decisions",
+        "loop-decisions"
       ]
     },
     {
