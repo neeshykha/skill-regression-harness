@@ -17,7 +17,12 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import run as run_mod  # noqa: E402
+# run.py imports the report module, which needs claude-eval-kit. Everything else
+# here is stdlib-only, so a checkout without the kit still runs the other tests.
+try:
+    import run as run_mod  # noqa: E402
+except ModuleNotFoundError:
+    run_mod = None
 
 from harness.baseline import Baseline, description_hash  # noqa: E402
 from harness.discover import Skill, discover, is_templated, parse_frontmatter  # noqa: E402
@@ -534,6 +539,7 @@ class TestBaseline(unittest.TestCase):
             self.assertEqual(Baseline.load(p).drift(self.skills, "2.1.220", "sonnet"), [])
 
 
+@unittest.skipIf(run_mod is None, "run.py needs claude-eval-kit, which is not installed")
 class TestRerun(unittest.TestCase):
     """Pinned against the gap that shipped: the skill-check instructions sent a
     wrong-skill result to --retry-failed, which only drops rows that errored.
