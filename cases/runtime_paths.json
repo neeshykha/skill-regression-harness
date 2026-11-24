@@ -13,5 +13,29 @@
     "skill": "planning-with-files",
     "path": "~/.claude/loop.md",
     "reason": "Destination of the upstream loop.md template `cp` step, not a file the skill reads; the local install note marks that section as upstream-only."
+  },
+  {
+    "skill": "support-batch",
+    "path": "~/.claude/skills/escalated-batch/SKILL.md",
+    "host": "worker Mac",
+    "reason": "The skill reads it on the worker (`ssh worker cat …`) for the B5 order; escalated-batch is installed there, not here."
+  },
+  {
+    "skill": "support-batch",
+    "path": "~/.claude/skills/pne-ticket/SKILL.md",
+    "host": "worker Mac",
+    "reason": "Read on the worker over ssh for the ticket-filing section; pne-ticket is installed there, not here."
+  },
+  {
+    "skill": "support-batch",
+    "path": "~/.claude/skills/pne-ticket/scripts/rest/",
+    "host": "worker Mac",
+    "reason": "Ticket-filing scripts the skill runs on the worker over ssh."
+  },
+  {
+    "skill": "support-batch",
+    "path": "~/.claude/skills/escalated-batch/scripts/log_sends.py",
+    "host": "worker Mac",
+    "reason": "Send logger the skill runs on the worker over ssh after scp'ing the sends file there."
   }
 ]

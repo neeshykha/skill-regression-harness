@@ -353,6 +353,32 @@ and the path regex only matches `~/` and `/Users/` forms, so it never saw that. 
 fixed in the skill: its local install note now lists the `loop.md` template among the
 upstream-only sections.
 
+### Twenty-eight more, 2026-11-24: four shapes and two retired skills
+
+By November every lint report opened with 26 to 28 red errors and none of them was a
+break, so a real one would have been lost in the list. They came in five kinds:
+
+- **Bare date stamps.** `showcase_YYYY-MM-DD.md`, `master_resume.md.bak.YYYYMMDD-HHMMSS`:
+  templated outputs written without angle brackets. Uppercase `YYYY` or `HHMMSS` in a
+  path now counts as a placeholder, the same as `<date>`.
+- **A folder with a space.** `~/Documents/Projects/Claude & Automation/` was cut at the
+  space and reported as `~/Documents/Projects/Claude`. The path regex now carries ` & `
+  when a path character follows it; `~/a & ~/b` in prose still splits in two.
+- **The worker Mac.** support-batch reads escalated-batch and pne-ticket files over ssh
+  on another machine. Those four paths are in `cases/runtime_paths.json` with a `host`,
+  and report at INFO as `remote_reference` under the same stale-entry rule.
+- **Filed pages.** Pages in `~/Downloads` are filed under `~/Downloads/Pages/<folder>/`
+  after a week. A missing `~/Downloads/<page>.html` found there is `filed_reference`:
+  INFO when the skill also names `~/Downloads/Pages/`, a WARN when it doesn't, and
+  still an error when the only copy is in `Pages/Archive/`.
+- **Skills switched off.** 18 of the errors and all three trigger collisions came from
+  batch-decisions and loop-decisions, which are `"off"` in `skillOverrides` and can't run
+  by any route. An `"off"` skill now skips the reference, collision, and boundary checks
+  and gets one INFO line saying so. `"user-invocable-only"` skills still run by `/name`
+  and keep every check.
+
+All five are pinned as regression tests. After the change the live run read 0 errors.
+
 ## A reproducibility caveat worth knowing
 
 Each dispatch is a real `claude -p` sub-session, and it inherits the full user environment:
