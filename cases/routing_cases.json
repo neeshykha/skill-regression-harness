@@ -1348,6 +1348,67 @@
       ],
       "trap": "map_ladders_scope",
       "why": "Near-miss: a ladder named in chat with no page involved, which the description hands to bin/ladder.py directly. map-ladders firing is the failure."
+    },
+    {
+      "id": "bs-01",
+      "prompt": "Make me a build sheet for the bucket hutch.",
+      "expected": "build-sheet",
+      "acceptable": [
+        "build-sheet"
+      ],
+      "trap": "build_sheet_scope",
+      "why": "Clear positive, the verbatim 'build sheet' trigger on a real job he has (Nov 14, 2026: added with the skill)."
+    },
+    {
+      "id": "bs-02",
+      "prompt": "The pickets and balusters for the bucket hutch came today. Walk me through putting it together, IKEA-style, like I've never built anything.",
+      "expected": "build-sheet",
+      "acceptable": [
+        "build-sheet"
+      ],
+      "trap": "build_sheet_scope",
+      "why": "Paraphrase: never says 'sheet'; 'IKEA-style' and a first-timer ask are claimed in the description. diy-home-context firing first would mean the sheet rules never load."
+    },
+    {
+      "id": "bs-03",
+      "prompt": "I'm in the garage with the drill and the steel edging strips. How many weep holes per strip, and how far up from the bottom?",
+      "expected": "build-sheet",
+      "acceptable": [
+        "build-sheet"
+      ],
+      "trap": "build_sheet_scope",
+      "why": "Mid-job drill question with no sheet named; the description claims 'how many holes' and 'how far from the top'. The per-piece answer rule lives in this skill."
+    },
+    {
+      "id": "bs-04",
+      "prompt": "Plan a pollinator bed for the strip along the sidewalk, about 10 by 4 feet, full sun.",
+      "expected": "garden-bed-build",
+      "acceptable": [
+        "garden-bed-build"
+      ],
+      "trap": "build_sheet_scope",
+      "why": "Near-miss: a bed with dimensions, but a planting plan, which build-sheet hands to garden-bed-build by name. build-sheet firing here is the failure."
+    },
+    {
+      "id": "bs-05",
+      "prompt": "There's a hairline crack in the new concrete on my stair wall a week after the pour. Is that normal or should I worry?",
+      "expected": "none",
+      "acceptable": [
+        "none",
+        "anthropic-skills:diy-home-context"
+      ],
+      "trap": "build_sheet_scope",
+      "why": "Near-miss: a diagnosis about a job that had a build sheet, with no steps asked for. build-sheet hands diagnosis to diy-home-context by name, so it's acceptable here; build-sheet firing is the failure."
+    },
+    {
+      "id": "bs-06",
+      "prompt": "Give me a cut list for the row cover over the four U-bed arms.",
+      "expected": "build-sheet",
+      "acceptable": [
+        "build-sheet"
+      ],
+      "trap": "build_sheet_scope",
+      "why": "Garden-side positive: 'cut list' for row cover, with bed vocabulary that could pull garden-bed-build. The cut-from-covered-length rule is this skill's."
     }
   ],
   "traps": [
@@ -1662,6 +1723,17 @@
         "ml-01",
         "ml-02",
         "ml-03"
+      ]
+    },
+    {
+      "label": "build-sheet: steps for a physical job vs. a planting plan and a diagnosis",
+      "ids": [
+        "bs-01",
+        "bs-02",
+        "bs-03",
+        "bs-04",
+        "bs-05",
+        "bs-06"
       ]
     }
   ]

@@ -14,18 +14,31 @@ from pathlib import Path
 # deliberately consumes <placeholder> / {placeholder} / * segments so a
 # templated path is captured whole rather than truncated into a fragment that
 # then looks like a missing file.
-_PATH_RE = re.compile(r"(?:~|/Users/[A-Za-z0-9_.-]+)/[A-Za-z0-9_./<>{}*-]*[A-Za-z0-9_/>}*-]")
+#
+# " & " is allowed mid-path when a path character follows it, because his
+# folders include `~/Documents/Projects/Claude & Automation/`, and stopping at
+# the space reported `~/Documents/Projects/Claude` as missing on every run.
+# Two paths joined by "&" in prose ("~/a & ~/b") still split, since "~" and
+# "/" can't start the continuation.
+_PATH_RE = re.compile(
+    r"(?:~|/Users/[A-Za-z0-9_.-]+)/(?:[A-Za-z0-9_./<>{}*-]| & (?=[A-Za-z0-9_]))*[A-Za-z0-9_/>}*-]"
+)
 
 # Trailing punctuation that is prose, not part of the path.
 _TRAILING = ".,;:)»\"'`"
 
 _PLACEHOLDER_CHARS = set("<>{}*")
 
+# Date-stamp placeholders written bare, e.g. `showcase_YYYY-MM-DD.md` or
+# `master_resume.md.bak.YYYYMMDD-HHMMSS`. Uppercase only: a real filename in
+# lowercase is still checked.
+_DATE_TOKEN = re.compile(r"Y{4}|H{2}M{2}S{2}")
+
 
 def is_templated(path: str) -> bool:
     """A path carrying a placeholder cannot be resolved, so its existence is not
     a fact this harness can establish either way."""
-    return any(c in _PLACEHOLDER_CHARS for c in path)
+    return any(c in _PLACEHOLDER_CHARS for c in path) or bool(_DATE_TOKEN.search(path))
 
 
 @dataclass

@@ -109,6 +109,21 @@ def check_duplicate_names(skills: list[Skill]) -> list[Finding]:
     return findings
 
 
+def _filed_page(resolved: Path, home: Path) -> Path | None:
+    """Where the Downloads filing moved a page, or None.
+
+    Only a page directly in ~/Downloads qualifies, and Pages/Archive doesn't
+    count as found."""
+    downloads = home / "Downloads"
+    pages = downloads / "Pages"
+    if resolved.parent != downloads or resolved.suffix != ".html" or not pages.is_dir():
+        return None
+    for hit in sorted(pages.rglob(resolved.name)):
+        if "Archive" not in hit.relative_to(pages).parts:
+            return hit
+    return None
+
+
 def load_runtime_paths(path: Path) -> list[dict]:
     """Reads the runtime-path allowlist. No file means no allowlist, not a crash."""
     if not path.exists():
@@ -132,8 +147,19 @@ def check_references(skills: list[Skill], home: Path, runtime_paths: list[dict] 
     works. No regex can tell those apart from a moved script, so the list is
     explicit, keyed by skill and exact path, and an entry the skill no longer
     mentions is a WARN so the list can't quietly outlive its reason.
+
+    An entry with a `host` is a path on another machine (support-batch reads
+    the worker Mac's escalated-batch and pne-ticket files over ssh). It reports
+    at INFO as `remote_reference`, under the same stale-entry rule.
+
+    A `~/Downloads/<page>.html` that's gone but sits under `~/Downloads/Pages/`
+    was filed there by the weekly Downloads filing, not lost. That reports at
+    INFO when the skill also names `~/Downloads/Pages/`, and as a WARN when it
+    doesn't, since then the skill may not know where to look. A page found only
+    under `Pages/Archive/` stays an error: the skill's page was archived.
     """
-    allowed = {(e["skill"], e["path"]) for e in runtime_paths or []}
+    entries = {(e["skill"], e["path"]): e for e in runtime_paths or []}
+    allowed = set(entries)
     findings = []
     for s in skills:
         refs = s.referenced_paths()
@@ -144,15 +170,39 @@ def check_references(skills: list[Skill], home: Path, runtime_paths: list[dict] 
                 )
                 continue
             if (s.dir.name, ref) in allowed:
-                findings.append(
-                    Finding("runtime_reference", INFO, s.dir.name, f"known runtime path, existence not checked: {ref}")
-                )
+                host = entries[(s.dir.name, ref)].get("host")
+                if host:
+                    findings.append(
+                        Finding("remote_reference", INFO, s.dir.name, f"path on the {host}, not checked here: {ref}")
+                    )
+                else:
+                    findings.append(
+                        Finding("runtime_reference", INFO, s.dir.name, f"known runtime path, existence not checked: {ref}")
+                    )
                 continue
             resolved = Path(ref.replace("~", str(home), 1)) if ref.startswith("~") else Path(ref)
-            if not resolved.exists():
-                findings.append(
-                    Finding("broken_reference", ERROR, s.dir.name, f"references a path that does not exist: {ref}")
-                )
+            if resolved.exists():
+                continue
+            filed = _filed_page(resolved, home)
+            if filed is not None:
+                where = filed.parent.relative_to(home / "Downloads")
+                if "Downloads/Pages/" in s.body:
+                    findings.append(
+                        Finding("filed_reference", INFO, s.dir.name, f"page was filed to {where}/, which the skill names: {ref}")
+                    )
+                else:
+                    findings.append(
+                        Finding(
+                            "filed_reference",
+                            WARN,
+                            s.dir.name,
+                            f"page was filed to {where}/ and the skill doesn't say to look there: {ref}",
+                        )
+                    )
+                continue
+            findings.append(
+                Finding("broken_reference", ERROR, s.dir.name, f"references a path that does not exist: {ref}")
+            )
         for skill, path in sorted(allowed):
             if skill == s.dir.name and path not in refs:
                 findings.append(
@@ -217,19 +267,20 @@ def check_trigger_collisions(skills: list[Skill]) -> list[Finding]:
     return findings
 
 
-def switched_off_skills(home: Path) -> set[str]:
+def switched_off_skills(home: Path, modes: tuple[str, ...] = ("off", "user-invocable-only")) -> set[str]:
     """Skills hidden from the model by `skillOverrides` in the user settings.
 
     "off" hides a skill from both the model and /name; "user-invocable-only"
     hides it from the model. Either way no dispatch can reach it, which makes it
-    as untestable by a positive case as a manual-only skill.
+    as untestable by a positive case as a manual-only skill. Pass
+    `modes=("off",)` for the skills nothing can run at all.
     """
     try:
         settings = json.loads((home / ".claude" / "settings.json").read_text())
     except (OSError, ValueError):
         return set()
     overrides = settings.get("skillOverrides") or {}
-    return {name for name, mode in overrides.items() if mode in ("off", "user-invocable-only")}
+    return {name for name, mode in overrides.items() if mode in modes}
 
 
 def check_dispatch_coverage(skills: list[Skill], cases: list[dict], off: set[str] | None = None) -> list[Finding]:
@@ -415,18 +466,30 @@ def run_lint(
     readme: Path | None = None,
     runtime_paths: list[dict] | None = None,
 ) -> list[Finding]:
-    findings: list[Finding] = []
+    # A skill set to "off" can't run by any route, so a path it names, a trigger
+    # it shares, or a missing boundary can't break anything. Checking them filled
+    # the report with 18 errors from two retired batch skills (Nov 2026). Its
+    # frontmatter, name, and coverage checks still run, and one INFO line says
+    # it was skipped. "user-invocable-only" skills still run by /name, so they
+    # keep every check.
+    off = switched_off_skills(home, modes=("off",))
+    live = [s for s in skills if s.dir.name not in off]
+    findings: list[Finding] = [
+        Finding("switched_off", INFO, s.dir.name, "off in skillOverrides; reference, collision, and boundary checks skipped")
+        for s in skills
+        if s.dir.name in off
+    ]
     findings += check_frontmatter(skills)
     findings += check_name_matches_dir(skills)
     findings += check_duplicate_names(skills)
-    findings += check_references(skills, home, runtime_paths)
+    findings += check_references(live, home, runtime_paths)
     if cases is not None:
         findings += check_dispatch_coverage(skills, cases, switched_off_skills(home))
     if cases is not None and traps is not None:
         findings += check_docs_counts(cases, traps, readme or Path(__file__).resolve().parent.parent / "README.md")
     findings += check_baseline_drift(drift_reasons or [])
-    findings += check_trigger_collisions(skills)
-    findings += check_negative_guidance(skills)
+    findings += check_trigger_collisions(live)
+    findings += check_negative_guidance(live)
     if cases is not None:
         findings += check_untested_triggers(skills, cases)
     order = {ERROR: 0, WARN: 1, INFO: 2}

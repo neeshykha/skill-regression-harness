@@ -35,6 +35,7 @@ from harness.lint import (  # noqa: E402
     check_trigger_collisions,
     check_untested_triggers,
     load_runtime_paths,
+    run_lint,
     switched_off_skills,
 )
 from harness.preflight import envelope_error  # noqa: E402
@@ -128,6 +129,61 @@ class TestReferences(unittest.TestCase):
 
     def test_missing_runtime_file_means_empty_allowlist(self):
         self.assertEqual(load_runtime_paths(Path(tempfile.gettempdir()) / "no-such-runtime-9f3a.json"), [])
+
+    def test_bare_date_stamps_are_templated(self):
+        """Regression (Nov 24, 2026): archive-pick, automate-me, and work-interview
+        name outputs like `showcase_YYYY-MM-DD.md` with no angle brackets, and
+        every lint run reported them as missing files."""
+        self.assertTrue(is_templated("~/PhoneLog/daily_recap/showcase_YYYY-MM-DD.md"))
+        self.assertTrue(is_templated("/Users/aneesh/x/master_resume.md.bak.YYYYMMDD-HHMMSS"))
+        self.assertFalse(is_templated("~/Documents/yyyy-notes.md"))
+        self.assertFalse(is_templated("~/Documents/notes.md"))
+
+    def test_ampersand_folder_is_captured_whole(self):
+        """Regression: `Claude & Automation` was cut at the space, and
+        `~/Documents/Projects/Claude` was reported missing for two skills."""
+        s = make_skill("x", body="See `~/Documents/Projects/Claude & Automation/kit/ROLLBACK.md` first.")
+        self.assertEqual(s.referenced_paths(), ["~/Documents/Projects/Claude & Automation/kit/ROLLBACK.md"])
+
+    def test_two_paths_joined_by_ampersand_stay_separate(self):
+        s = make_skill("x", body="Read ~/a/one.md & ~/b/two.md together.")
+        self.assertEqual(s.referenced_paths(), ["~/a/one.md", "~/b/two.md"])
+
+    def test_remote_host_path_is_info(self):
+        s = make_skill("x", body="On the worker: ~/.claude/skills/far-9f3a/SKILL.md")
+        allow = [{"skill": "x", "path": "~/.claude/skills/far-9f3a/SKILL.md", "host": "worker Mac", "reason": "ssh"}]
+        findings = check_references([s], Path.home(), allow)
+        self.assertEqual([(f.check, f.severity) for f in findings], [("remote_reference", "info")])
+        self.assertIn("worker Mac", findings[0].detail)
+
+    def _filed_home(self, tmp, folder):
+        home = Path(tmp)
+        (home / "Downloads" / "Pages" / folder).mkdir(parents=True)
+        (home / "Downloads" / "Pages" / folder / "map-9f3a.html").write_text("x")
+        return home
+
+    def test_filed_page_is_info_when_skill_names_pages(self):
+        """Regression: map-ladders names both spots for its page, and the page
+        was filed to Pages/Music; lint called it a broken reference."""
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self._filed_home(tmp, "Music")
+            s = make_skill("x", body="The page (~/Downloads/map-9f3a.html, or ~/Downloads/Pages/Music/ once filed)")
+            findings = [f for f in check_references([s], home) if f.check != "templated_reference"]
+            self.assertEqual([(f.check, f.severity) for f in findings], [("filed_reference", "info")])
+
+    def test_filed_page_warns_when_skill_does_not_name_pages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self._filed_home(tmp, "Music")
+            s = make_skill("x", body="Open ~/Downloads/map-9f3a.html")
+            findings = check_references([s], home)
+            self.assertEqual([(f.check, f.severity) for f in findings], [("filed_reference", "warn")])
+
+    def test_archived_page_is_still_broken(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self._filed_home(tmp, "Archive")
+            s = make_skill("x", body="Open ~/Downloads/map-9f3a.html")
+            findings = check_references([s], home)
+            self.assertEqual([f.check for f in findings], ["broken_reference"])
 
     def test_shipped_runtime_paths_are_well_formed(self):
         entries = load_runtime_paths(Path(__file__).resolve().parent.parent / "cases" / "runtime_paths.json")
@@ -468,6 +524,27 @@ class TestDispatchCoverage(unittest.TestCase):
             )
             self.assertEqual(switched_off_skills(home), {"a", "b"})
             self.assertEqual(switched_off_skills(home / "missing"), set())
+
+    def test_off_skill_skips_reference_collision_and_boundary_checks(self):
+        """Regression (Nov 24, 2026): batch-decisions and loop-decisions are
+        "off" and can't run, yet they put 18 broken references and three
+        trigger collisions on every report."""
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            (home / ".claude").mkdir()
+            (home / ".claude" / "settings.json").write_text(
+                json.dumps({"skillOverrides": {"old": "off", "manual": "user-invocable-only"}})
+            )
+            old = make_skill("old", description='Trigger on "run the batch".', body="Read ~/gone-9f3a.md", dirname="old")
+            new = make_skill("new", description='Trigger on "run the batch". Do not trigger otherwise.', dirname="new")
+            manual = make_skill("manual", description="Long enough description here.", body="Read ~/gone-9f3a.md", dirname="manual")
+            checks = {(f.check, f.skill) for f in run_lint([old, new, manual], home)}
+            self.assertIn(("switched_off", "old"), checks)
+            self.assertNotIn(("broken_reference", "old"), checks)
+            self.assertNotIn(("negative_guidance", "old"), checks)
+            self.assertFalse([c for c in checks if c[0] == "trigger_collision"])
+            # user-invocable-only still runs by /name, so its references are checked.
+            self.assertIn(("broken_reference", "manual"), checks)
 
     def test_live_skill_set_is_fully_covered(self):
         path = Path(__file__).resolve().parent.parent / "cases" / "routing_cases.json"
